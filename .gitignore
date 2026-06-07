@@ -1,13 +1,20 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.env
+# Build artifacts
+*.aux
 *.log
-main.aux
-main.bbl
-main.blg
-main.out
+*.out
+*.pdf
 *.synctex.gz
-.DS_Store
-Thumbs.db
+# Run logs and transient state
+full_campaign.log
+smoke_run.log
+compile_*.log
+c1.log
+c2.log
+failed_prompts.log
+wal_store_*.json
+proof_logs/
+get_out.txt
+# Local backups / secrets
+*.SIMULATION_BACKUP.json
+.gitignore_tmp
+.env

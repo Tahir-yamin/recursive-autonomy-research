@@ -1,4 +1,5 @@
 import os
+import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,9 +9,22 @@ from sklearn.datasets import make_gaussian_quantiles
 from sklearn.model_selection import train_test_split
 import gc
 
-# Set intra-op threads dynamically to avoid CPU/event loop thread starvation while maintaining matrix throughput
-import os
-torch.set_num_threads(1)  # Pin to 1 thread: prevents CPU cache thrashing under asyncio/PyTorch co-execution
+log = logging.getLogger(__name__)
+
+# Pin to 1 thread: prevents CPU cache thrashing under asyncio/PyTorch co-execution.
+torch.set_num_threads(1)
+
+_HARNESS_SIM_WARNED = False
+def _warn_harness_simulation(where: str) -> None:
+    """One-time warning when the training harness falls back to synthetic scoring."""
+    global _HARNESS_SIM_WARNED
+    if not _HARNESS_SIM_WARNED:
+        log.warning("=" * 64)
+        log.warning("SIMULATION MODE ACTIVE (%s): no API key detected.", where)
+        log.warning("Accuracy is a SYNTHETIC arithmetic stub, NOT real PyTorch training.")
+        log.warning("Set OPENROUTER_API_KEY to run physical training.")
+        log.warning("=" * 64)
+        _HARNESS_SIM_WARNED = True
 
 # Ensure reproducibility
 def set_seed(seed):
@@ -132,6 +146,7 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     
     if not gemini_key and not deepseek_key and not openrouter_key:
+        _warn_harness_simulation("train_and_evaluate")
         num_blocks = int(config.get("num_conv_layers", 1))
         hidden_dim = int(config.get("filters_2", 32))
         activation = config.get("activation", "ReLU")
@@ -282,6 +297,7 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     
     if not gemini_key and not deepseek_key and not openrouter_key:
+        _warn_harness_simulation("evaluate_test_vault")
         num_blocks = int(best_config.get("num_conv_layers", 1))
         hidden_dim = int(best_config.get("filters_2", 32))
         activation = best_config.get("activation", "ReLU")

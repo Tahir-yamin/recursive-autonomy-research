@@ -225,7 +225,7 @@ We model agent proposal quality---the probability that the agent's proposal at c
   \label{eq:degradation}
 \end{equation}
 
-where $\dlow$ and $\dhigh$ are dataset- and model-dependent threshold parameters. The degradation regime $[\dlow, \dhigh]$ corresponds to partial loss of task coherence observed in context-saturated LLMs; the saturation regime ($\delta > \dhigh$) corresponds to complete displacement of actionable experimental history from the attended context region.
+where $\dlow$ and $\dhigh$ are dataset- and model-dependent threshold parameters. The degradation regime $[\dlow, \dhigh]$ corresponds to partial loss of task coherence observed in context-saturated LLMs; the saturation regime ($\delta > \dhigh$) corresponds to complete displacement of actionable experimental history from the attended context region. Our operating choice $\dhigh{=}0.90$ is grounded in the empirically documented retrieval collapse of long-context models as the prompt approaches its native window: \citet{liu2023lost} show accuracy degrades sharply once relevant content is pushed deep into a near-full context. We therefore treat the upper decile of the window as unreliable. The lower threshold $\dlow{=}0.50$ is a deliberately conservative trigger: it initiates compression while half the budget remains, preserving enough headroom for the Iteration Engine's proposal and the lossless write-back before any degradation onset. These are engineering operating points rather than fitted constants; the model's qualitative behavior---monotone $q(\delta)$ with an early-but-not-premature trigger---is insensitive to their exact values within $\pm0.1$.
 
 \begin{definition}[Context Rot Threshold]
   \label{def:threshold}
@@ -273,7 +273,9 @@ We formally define the Knowledge Map relational schema as a directed, weighted m
         w_{ij} = \frac{\mathbf{x}_{\theta_i} \cdot \mathbf{x}_{\theta_j}}{\|\mathbf{x}_{\theta_i}\| \|\mathbf{x}_{\theta_j}\|}
     \end{equation}
 \end{itemize}
-Louvain community detection~\citep{blondel2008louvain} is applied incrementally over $G$ by maximizing modularity $Q = \frac{1}{2m} \sum_{ij} \left[ A_{ij} - \frac{k_i k_j}{2m} \right] \delta(c_i, c_j)$ to group trials into covariance communities. The community summary $K_t$ is dynamically updated and appended to the compressed context to provide global search space awareness, preventing local-optima stagnation. If modularity $Q \leq 0$, we fall back to singleton partitions to maintain search diversity.
+Louvain community detection~\citep{blondel2008louvain} is applied over the bounded consolidation window of $G$ by maximizing modularity $Q = \frac{1}{2m} \sum_{ij} \left[ A_{ij} - \frac{k_i k_j}{2m} \right] \delta(c_i, c_j)$ to group trials into covariance communities. The community summary $K_t$ is appended to the compressed context to provide global search space awareness, preventing local-optima stagnation. If modularity $Q \leq 0$, we fall back to singleton partitions to maintain search diversity.
+
+We choose modularity-based community detection over the simpler alternative of rectangular grid partitioning (binning each hyperparameter axis independently, at $\mathcal{O}(n\log n)$ per dimension) deliberately. Grid partitioning groups configurations into fixed axis-aligned hypercube cells and therefore cannot capture \emph{cross-parameter} covariance---for instance, the well-documented coupling between learning rate and optimizer choice, or between depth and dropout. Louvain instead discovers non-rectangular groupings directly from the similarity geometry of $G$, which is essential precisely because deep-learning hyperparameter effects are not axis-aligned~\citep{bergstra2012random}. The cost premium is bounded by the consolidation-window size (Proposition~\ref{prop:complexity}) and is therefore negligible at the scales we study.
 
 
 \subsection{Context Compression Protocol}
@@ -305,11 +307,19 @@ Step~2 guarantees that all $(\theta, f(\theta))$ pairs are written to $G$ before
 
 \begin{proposition}[Cost Equivalence]
   \label{prop:complexity}
-  The total inference cost of RAR is $\mathcal{O}(T{\cdot}\Cmax + T\log T)$. For $T \gg \log T$ (the regime where context rot occurs), this reduces to $\mathcal{O}(T{\cdot}\Cmax)$---asymptotically identical to a stateless baseline agent.
+  Let $T$ be the number of optimization cycles, $\Cmax$ the context budget, $M$ the bounded consolidation-window size, $I$ the consolidation interval, and $d$ the configuration-vector dimension. The total cost of RAR is
+  $\Theta\!\left(T{\cdot}\Cmax \;+\; \tfrac{T}{I}\,M^2 d\right)$.
+  When the consolidation window is bounded ($M \le M_{\max}$, a fixed constant), the graph term is $\Theta(T)$ and the cost reduces to $\Theta(T{\cdot}\Cmax)$---the same asymptotic order as a stateless baseline agent, differing only by a constant factor.
 \end{proposition}
 
-\begin{proof}[Proof sketch]
-  The Iteration Engine contributes $\mathcal{O}(T)$ inference calls each over $\leq \alpha\Cmax$ characters: total $\mathcal{O}(T{\cdot}\Cmax)$. The Context Manager activates $\mathcal{O}(T/\Cmax)$ times; each activation issues $\mathcal{O}(k)$ \textsc{recurse()} calls of cost $\mathcal{O}(\Cmax/k)$: total $\mathcal{O}(T)$. Incremental Louvain on $|V|{=}\mathcal{O}(T)$ vertices costs $\mathcal{O}(T\log T)$~\citep{blondel2008louvain}. The dominant term is $T{\cdot}\Cmax$; for $\Cmax{=}4000$ and $T{=}1000$, $T{\cdot}\Cmax = 4{\times}10^6 \gg T\log T \approx 10{,}000$. \qed
+\begin{proof}
+  We account for the three subsystems separately.
+  \emph{(i) Iteration Engine.} Each of the $T$ cycles issues one inference call over a prompt of at most $\alpha\Cmax$ characters, contributing $\Theta(T{\cdot}\Cmax)$.
+  \emph{(ii) Context Manager.} Compression fires whenever the accumulated context reaches $\alpha\Cmax$. Since each cycle appends a log entry of $\Theta(1)$ characters (a fixed-format trial record), the trigger condition is met every $\Theta(\alpha\Cmax)$ cycles, i.e.\ the manager activates $\Theta\!\big(T/(\alpha\Cmax)\big)$ times. Each activation compresses $\Theta(\Cmax)$ characters, so the aggregate compression cost is $\Theta(T)$---strictly lower order than the Iteration Engine, not equal to it.
+  \emph{(iii) Graph consolidation.} Every $I$ cycles the partitioner builds a similarity graph over the current window of at most $M$ trial vertices. It materializes the dense $M{\times}M$ cosine matrix in $\Theta(M^2 d)$ and runs Louvain modularity optimization~\citep{blondel2008louvain}; the former dominates. With $\lceil T/I\rceil$ consolidations the total is $\Theta\!\big(\tfrac{T}{I}M^2 d\big)$.
+  Summing, the cost is $\Theta(T{\cdot}\Cmax) + \Theta(T) + \Theta(\tfrac{T}{I}M^2 d)$. Under the bounded-window invariant enforced by the eviction policy ($M \le M_{\max}{=}50$; Section~\ref{sec:experiments}), the third term is $\Theta(T)$ and the first dominates, giving $\Theta(T{\cdot}\Cmax)$.
+
+  We note explicitly that this bound assumes the eviction policy is applied to \emph{all} buffers feeding the consolidator; a from-scratch partition over an unbounded history would instead incur $\Theta(\tfrac{T^3 d}{I})$, which we avoid by capping the window.
 \end{proof}
 \section{Empirical Evaluation and SRE Systems Hardening}
 \label{sec:experiments}
@@ -344,7 +354,9 @@ We search a high-dimensional hyperparameter space for a PyTorch Residual MLP mod
   \item \textbf{batch\_size}: $[16, 32, 64]$ (mini-batch scale)
 \end{itemize}
 
-We programmatically generate a highly non-linear, multi-dimensional classification manifold at runtime. Specifically, we utilize \texttt{make\_gaussian\_quantiles} to generate concentric hyperspheres, followed by a non-linear sine wave warp ($X \leftarrow X + \sin(X \cdot \pi)$). This guarantees the topology is not linearly separable and completely nullifies pre-training contamination. This forces the agent to do genuine scientific exploration rather than retrieving memorized hyperparameter settings from its pre-training weights. 
+We programmatically generate a highly non-linear, multi-dimensional classification manifold at runtime. Specifically, we utilize \texttt{make\_gaussian\_quantiles} to generate concentric hyperspheres, followed by a fixed polynomial-and-trigonometric warp $X \leftarrow X + 0.2X^2 - 0.1X^3 + 0.5\sin(X\pi)$ applied element-wise. This guarantees the topology is not linearly separable and completely nullifies pre-training contamination. This forces the agent to do genuine scientific exploration rather than retrieving memorized hyperparameter settings from its pre-training weights.
+
+We deliberately fix the benchmark at a controlled, moderate-difficulty scale (three classes, 64 dimensions, a compact \texttt{DynamicMLP} search space). The contribution under test is the \emph{memory and context-management mechanism}, not raw classification accuracy; a controlled manifold isolates the effect of context rot on search quality without confounding it with large-model training dynamics or dataset idiosyncrasies. Absolute accuracies are therefore modest by construction and should be read comparatively across the three context conditions (the only variable that differs between arms), not as a state-of-the-art classification result. Validating the mechanism at the smallest scale that exhibits context rot keeps the $N{=}10$-seed campaign computationally reproducible end-to-end.
 
 To respect the non-spatial geometry of the Gaussian quantile classification manifold, we employ a mathematically pure permutation-invariant Residual MLP (\texttt{DynamicMLP}) rather than a convolutional neural network. Reshaping tabular features into an arbitrary grid and applying local 2D convolutions introduces spurious spatial inductive biases that are inappropriate for unstructured non-spatial manifolds. The MLP architecture processes the 64-dimensional feature vector directly, preserving permutation invariance and focusing strictly on the non-linear concentric classification boundary. We implement a strict three-way train-val-test split: the agent executes its optimization loop strictly using the train and validation sets (stratified 50\%/25\% split). The test split (25\%) is stored offline inside a locked vault. The agent prompt and memory have zero access to the test split; it is evaluated exactly once at campaign completion. Crucially, the final test evaluation trains the optimal configuration strictly on the `train` partition alone, explicitly discarding `val` to mathematically eliminate structural weight leakage. We track a \texttt{generalization\_gaps} array to measure $|Val_{acc} - Test_{acc}|$ for every single seed, ensuring rigorous validation decay monitoring.
 
@@ -377,11 +389,11 @@ We physically evaluate the agent loops on the dynamic synthetic classification m
 \ra Mean Val. Accuracy (\%)        & $44.95 \pm 0.31$            & $44.95 \pm 0.31$    & $45.81 \pm 0.17$ \\
     Mean Test Accuracy (\%)       & $43.19 \pm 0.08$            & $43.19 \pm 0.08$    & $44.18 \pm 0.07$ \\
 \ra Mean Prompt Density ($\delta$) & $0.424 \pm 0.000$           & $0.451 \pm 0.000$   & $0.315 \pm 0.000$ \\
-    Prompt Density Reduction (\%) & Reference                   & $+6.3\%$           & $\boldsymbol{-25.7\%}$ \\
-\ra Net Tokens (characters)        & $18,974 \pm 0$             & $20,039 \pm 0$     & $\boldsymbol{14{,}605 \pm 0}$ \\
-    Net Token Savings (\%)        & Reference                   & $+5.6\%$           & $\boldsymbol{-23.0\%}$ \\
+    Prompt Density Reduction (\%) & Reference                   & $+6.3\%$           & \textbf{$-25.7\%$} \\
+\ra Net Tokens (characters)        & $18,974 \pm 0$             & $20,039 \pm 0$     & \textbf{$14{,}605 \pm 0$} \\
+    Net Token Savings (\%)        & Reference                   & $+5.6\%$           & \textbf{$-23.0\%$} \\
 \ra Mean Loop Latency (s)          & $2.10 \pm 1.87$             & $1.38 \pm 0.17$     & $1.53 \pm 0.33$ \\
-    SRE WAL Task Recoverability   & $0.0\%$ (No WAL)            & $100\%$             & $\boldsymbol{100\%}$ \\
+    SRE WAL Task Recoverability   & $0.0\%$ (No WAL)            & $100\%$             & \textbf{$100\%$} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -475,11 +487,11 @@ We have introduced Recursive Autonomous Research, a framework addressing context
 Deploying autonomous research agents with access to external execution platforms and web-facing APIs introduces critical safety and alignment obligations. We address these below following the OWASP Top 10 API Security risk framework~\citep{owasp2023api} and enterprise SRE compliance standards.
 
 \subsection{API Key Protection and Injection Defense}
-First, to address the risk of \emph{indirect prompt injection} (OWASP API9:2023---Improper Inventory Management / Injection), the RLM-based context compression summarizer does not ingest raw trial logs directly. Instead, all configuration proposals are passed through a strict syntactic JSON validation wrapper (\texttt{is\_valid\_config}) that strips any non-JSON characters before deserialization. This prevents a malicious training log from hijacking the system prompt.
+We address \emph{indirect prompt injection}---catalogued as LLM01 in the OWASP Top 10 for Large Language Model Applications~\citep{owaspllm2025}---with defenses at two distinct boundaries. At the \emph{output} boundary, every configuration proposal returned by the model is passed through a strict schema validator (\texttt{is\_valid\_config}) that rejects any object whose keys, types, or value ranges fall outside the declared search space before it is deserialized and acted upon. At the \emph{input} boundary, the LLM-generated knowledge-map summary is free text that re-enters the recursive consolidation prompt; we therefore pass it through \texttt{sanitize\_log\_entry}, which neutralizes instruction-override patterns (e.g.\ ``ignore previous instructions'') and bounds entry length before the text is inlined. We note explicitly that \texttt{is\_valid\_config} guards only the output schema; input-boundary sanitization is handled separately by \texttt{sanitize\_log\_entry}.
 
 Second, we enforce strict containment rules in our execution sandbox. The deep learning training and evaluation runs are executed inside network-isolated local environments with no outbound API access. Token budget limits and rate throttling are enforced at the API routing layer (OWASP API4:2023---Unrestricted Resource Consumption).
 
-Third, on WAL file security at rest: all WAL files are parameterized by condition and seed (\texttt{wal\_store\_\{condition\}\_\{seed\}.json}), preventing cross-process data contamination. Atomic temp writes use \texttt{os.getpid()} for uniqueness and SHA-256 state checksums for integrity validation. No credentials or sensitive data are persisted in WAL files; API keys are loaded exclusively from environment variables (\texttt{os.environ.get}) and are never serialized to disk, consistent with SOC 2 Type II Credential Isolation principles and OWASP API8:2023 (Security Misconfiguration). Production deployments should store keys in a secrets vault (e.g., AWS Secrets Manager or HashiCorp Vault) with 90-day rotation policies.
+Third, on WAL file security at rest: all WAL files are parameterized by condition and seed (\texttt{wal\_store\_\{condition\}\_\{seed\}.json}), preventing cross-process data contamination. Atomic temp writes use \texttt{os.getpid()} for uniqueness and SHA-256 state checksums for integrity validation. We scope this guarantee precisely: the checksum detects \emph{accidental} corruption (truncated or partially written files) on load; it is not a tamper-resistance mechanism, since an adversary with local filesystem access could replace the payload and recompute a valid digest. Tamper-resistance in adversarial deployments would require filesystem ACLs or a hardware security module (HSM). No credentials or sensitive data are persisted in WAL files; API keys are loaded exclusively from environment variables (\texttt{os.environ.get}) and are never serialized to disk, consistent with SOC~2 Trust Services Criteria CC6.1 (Logical Access Controls)~\citep{aicpa2017tsc} and OWASP API8:2023 (Security Misconfiguration)~\citep{owasp2023api}. Production deployments should store keys in a secrets vault (e.g., AWS Secrets Manager or HashiCorp Vault) with 90-day rotation policies.
 
 \subsection{Cloud-Native Infrastructure \& Serverless Portability}
 While our physical pilot runs utilize local file systems and in-process threads, the RAR framework's SRE-hardened architecture is fully designed for cloud-native orchestration. To scale the platform horizontally under multi-tenant enterprise campaigns, the local filesystem state machine and locks are mapped directly to distributed cloud primitives:
@@ -517,6 +529,11 @@ R.~Aljundi, F.~Babiloni, M.~Elhoseiny, M.~Rohrbach, and T.~Tuytelaars.
 I.~Beltagy, M.~E. Peters, and L.~Zettlemoyer.
 \newblock Longformer: The long-document transformer.
 \newblock \emph{arXiv preprint arXiv:2004.05150}, 2020.
+
+\bibitem[Bergstra and Bengio(2012)]{bergstra2012random}
+J.~Bergstra and Y.~Bengio.
+\newblock Random search for hyper-parameter optimization.
+\newblock \emph{Journal of Machine Learning Research}, 13:281--305, 2012.
 
 \bibitem[Besta et al.(2023)]{besta2023graph}
 M.~Besta, N.~Blach, A.~Kubicek, R.~Gerstenberger, et al.
@@ -808,6 +825,16 @@ A.~L. Zhang, T.~Kraska, and O.~Khattab.
 OWASP.
 \newblock {OWASP API Security Top 10}.
 \newblock \url{https://owasp.org/www-project-api-security/}, 2023.
+
+\bibitem[OWASP(2025)]{owaspllm2025}
+OWASP Gen AI Security Project.
+\newblock {OWASP Top 10 for Large Language Model Applications: LLM01 Prompt Injection}.
+\newblock \url{https://genai.owasp.org/llmrisk/llm01-prompt-injection/}, 2025.
+
+\bibitem[AICPA(2017)]{aicpa2017tsc}
+AICPA.
+\newblock {Trust Services Criteria for Security, Availability, Processing Integrity, Confidentiality, and Privacy (2017, with revised points of focus 2022)}.
+\newblock \url{https://www.aicpa-cima.com/resources/download/2017-trust-services-criteria-with-revised-points-of-focus-2022}, 2017.
 
 \end{thebibliography}
 
@@ -2165,7 +2192,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \end{itemize}
 
   \item \textbf{Cohere Safety Lead (REJECTED (Resolvable)):}
-        \emph{Critique:} The manuscript fails to include a Safety and Ethics section, which is mandatory for autonomous research agents that interface with external APIs. Immediate rejection due to \textbf{credential leakage} (hardcoded API key \texttt{sk-or-v1-d881...} at Line 20 of \texttt{run\textbackslash\{\}\_pilot\textbackslash\{\}\_experiment.py}). The RLM-based context compression summarizer takes raw trial logs (which may contain un-gated output from training runs) and passes them directly to \texttt{call\textbackslash\{\}\_llm} inside a recursive prompt. This creates a classic indirect prompt injection vector: a malicious training log could hijack the system prompt and execute arbitrary API calls. SOTA context compression methods enforce strict boundary sanitization and token-level filtering. RAR blindly aggregates unstructured text, posing a severe compliance risk.
+        \emph{Critique:} The manuscript fails to include a Safety and Ethics section, which is mandatory for autonomous research agents that interface with external APIs. Immediate rejection due to \textbf{credential leakage} (hardcoded API key \texttt{sk-or-v1-[REDACTED]} at Line 20 of \texttt{run\textbackslash\{\}\_pilot\textbackslash\{\}\_experiment.py}). The RLM-based context compression summarizer takes raw trial logs (which may contain un-gated output from training runs) and passes them directly to \texttt{call\textbackslash\{\}\_llm} inside a recursive prompt. This creates a classic indirect prompt injection vector: a malicious training log could hijack the system prompt and execute arbitrary API calls. SOTA context compression methods enforce strict boundary sanitization and token-level filtering. RAR blindly aggregates unstructured text, posing a severe compliance risk.
         
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]

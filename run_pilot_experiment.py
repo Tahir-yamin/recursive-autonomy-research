@@ -29,6 +29,19 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # --- API Setup ----------------------------------------------------------------
 API_KEY_DEFAULT = os.environ.get("OPENROUTER_API_KEY", "")
 
+_SIM_MODE_WARNED = False
+def _warn_simulation_mode(where: str) -> None:
+    """Emit a prominent one-time warning whenever the synthetic simulation fallback
+    activates, so keyless runs can never silently masquerade as physical experiments."""
+    global _SIM_MODE_WARNED
+    if not _SIM_MODE_WARNED:
+        log.warning("=" * 64)
+        log.warning("SIMULATION MODE ACTIVE (%s): no LLM API key detected.", where)
+        log.warning("Outputs are SYNTHETIC arithmetic stubs, NOT real LLM/PyTorch results.")
+        log.warning("Set OPENROUTER_API_KEY to run physical experiments.")
+        log.warning("=" * 64)
+        _SIM_MODE_WARNED = True
+
 async def call_llm(prompt, session=None, system_prompt="You are a precise machine learning assistant."):
     """Async HTTP client utilizing a shared aiohttp ClientSession for serving-safe, non-blocking requests"""
     gemini_key = os.environ.get("GEMINI_API_KEY")
@@ -37,6 +50,7 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
     
     # SRE Fast Simulation Mode (if no API keys are present in environment)
     if not gemini_key and not deepseek_key and not openrouter_key:
+        _warn_simulation_mode("call_llm")
         if "recursively consolidating" in prompt or "You are recursively consolidating" in prompt:
             return "The optimal parameters occupy wider dimensions (filters_2=64) and depth num_conv_layers=3 with LeakyReLU and AdamW (lr=0.01). Failed configurations consistently use SGD and high dropout (0.5)."
         else:
@@ -123,27 +137,40 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
             "Authorization": f"Bearer {openrouter_key}",
             "Content-Type": "application/json"
         }
-        model_name = os.environ.get("OPENROUTER_MODEL", "openrouter/free")
+        model_name = os.environ.get("OPENROUTER_MODEL", "nvidia/nemotron-nano-9b-v2:free")
         payload = {
             "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.2
+            "temperature": 0.2,
+            # Reasoning-capable free models (e.g. nemotron-nano) spend tokens on a
+            # reasoning trace before emitting content; budget generously so the JSON
+            # answer is not truncated (finish_reason=length with null content).
+            "max_tokens": int(os.environ.get("OPENROUTER_MAX_TOKENS", "4000"))
         }
         
     actual_session = session or aiohttp.ClientSession()
     try:
         for attempt in range(5):
             try:
-                async with actual_session.post(url, headers=headers, json=payload, timeout=30) as response:
+                async with actual_session.post(url, headers=headers, json=payload, timeout=180) as response:
                     if response.status == 200:
                         res_data = await response.json()
                         if is_gemini:
                             return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
                         else:
-                            return res_data["choices"][0]["message"]["content"].strip()
+                            # Reasoning models may return content=None when the token
+                            # budget is exhausted by the reasoning trace; treat that as a
+                            # transient failure so the retry loop (or heuristic) handles it.
+                            content = res_data["choices"][0]["message"].get("content")
+                            if content:
+                                return content.strip()
+                            log.warning("LLM returned empty content (likely reasoning-token "
+                                        "exhaustion); retrying with backoff.")
+                            await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
+                            continue
                     elif response.status == 429:
                         # SRE Hardening: Exponential backoff with jitter on rate-limits (no fast exit)
                         backoff = 2.0 * (2 ** attempt) + np.random.uniform(0.1, 1.0)
@@ -208,6 +235,34 @@ def is_valid_config(config):
         return False
     return True
 
+# Pre-compiled instruction-override patterns for input-boundary sanitization.
+# These guard the LLM *input* surface (free-text summaries re-injected into the
+# recursive prompt), complementing is_valid_config which guards the *output*.
+_INJECTION_PATTERNS = [
+    re.compile(r'(?i)(ignore|forget|disregard|override)\b.{0,40}\b(instruction|above|prior|previous|system|prompt)'),
+    re.compile(r'(?i)\b(system|developer)\s*prompt\b'),
+    re.compile(r'(?i)\byou\s+are\s+now\b'),
+    re.compile(r'(?i)\b(execute|run|call)\b.{0,20}\b(api|command|shell|code)\b'),
+]
+
+def sanitize_log_entry(entry: str, max_len: int = 600) -> str:
+    """Strip instruction-override patterns from free text before it re-enters the
+    LLM context. This closes the indirect prompt-injection vector where a crafted
+    trial summary could hijack the recursive consolidation prompt.
+
+    Args:
+        entry: Raw free text (e.g. an LLM-generated knowledge-map summary).
+        max_len: Hard cap on returned length to bound prompt growth.
+    Returns:
+        Sanitized, length-bounded string safe to inline into a prompt.
+    """
+    if not isinstance(entry, str):
+        return ""
+    sanitized = entry
+    for pat in _INJECTION_PATTERNS:
+        sanitized = pat.sub("[SANITIZED]", sanitized)
+    return sanitized[:max_len]
+
 def save_failed_payload(prompt, error_msg="Timeout or API Error"):
     """SRE Hardening: Persist the exact prompt that caused API timeouts or parsing failures for root-cause analysis"""
     import datetime
@@ -222,8 +277,12 @@ def save_failed_payload(prompt, error_msg="Timeout or API Error"):
         print(f"Failed to log failed payload: {e}")
 
 # --- Search Space and Constants (Ghost Parameters Purged) ---------------------
-CYCLES = 10
-SEEDS = [42, 7, 13, 23, 88, 99, 101, 107, 113, 127]  # N=10 independent seeds for statistically rigorous campaigns and standard deviations
+# CYCLES and SEEDS are env-overridable for smoke-testing (e.g. RAR_CYCLES=3
+# RAR_SEEDS=42) without touching the statistically rigorous N=10 default campaign.
+CYCLES = int(os.environ.get("RAR_CYCLES", "10"))
+_DEFAULT_SEEDS = [42, 7, 13, 23, 88, 99, 101, 107, 113, 127]  # N=10 independent seeds
+_seeds_env = os.environ.get("RAR_SEEDS", "")
+SEEDS = [int(s) for s in _seeds_env.split(",") if s.strip()] if _seeds_env else _DEFAULT_SEEDS
 MAX_TRIAL_MEMORY = 50  # Parent state-eviction sliding window to prevent linear heap fragmentation
 
 SEARCH_SPACE = {
@@ -665,7 +724,9 @@ async def execute_campaign():
             "prompt_densities": [],
             "wall_clock_latencies": [],
             "net_tokens": [],
-            "generalization_gaps": []
+            "generalization_gaps": [],
+            "llm_proposal_counts": [],   # per-seed: # of proposals that came from the LLM
+            "heuristic_proposal_counts": []  # per-seed: # of heuristic fallbacks
         }
 
     # SRE Hardening: Maintain a single ClientSession with persistent TCPConnector keep-alive pooling to prevent socket exhaustion
@@ -746,7 +807,10 @@ async def execute_campaign():
                         else: # rar_compressed
                             history_str = ""
                             if compressed_history:
-                                history_str += f"### Lossless Summary of Prior Knowledge Map:\n{compressed_history}\n\n"
+                                # Input-boundary sanitization: the summary is LLM-generated
+                                # free text re-entering the recursive prompt — sanitize it.
+                                safe_summary = sanitize_log_entry(compressed_history)
+                                history_str += f"### Lossless Summary of Prior Knowledge Map:\n{safe_summary}\n\n"
                             if raw_history_buffer:
                                 history_str += "### Recent Trial Logs:\n"
                                 for t in raw_history_buffer:
@@ -851,6 +915,10 @@ Your response MUST contain a single, clean JSON block in the format:
                 campaign_results["conditions"][cond]["wall_clock_latencies"].append(cond_duration)
                 campaign_results["conditions"][cond]["net_tokens"].append(net_tokens)
                 campaign_results["conditions"][cond]["generalization_gaps"].append(abs(max(val_accs) - test_acc))
+                campaign_results["conditions"][cond]["llm_proposal_counts"].append(
+                    sum(1 for t in trials if t.get("mode") == "LLM"))
+                campaign_results["conditions"][cond]["heuristic_proposal_counts"].append(
+                    sum(1 for t in trials if t.get("mode") == "heuristic"))
                 
                 # Clear isolated WAL logs on success
                 clear_wal(wal_path)
