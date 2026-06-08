@@ -144,8 +144,9 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
     gemini_key = os.environ.get("GEMINI_API_KEY")
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    
-    if not gemini_key and not deepseek_key and not openrouter_key:
+    local_url = os.environ.get("LLM_BASE_URL")
+
+    if not gemini_key and not deepseek_key and not openrouter_key and not local_url:
         _warn_harness_simulation("train_and_evaluate")
         num_blocks = int(config.get("num_conv_layers", 1))
         hidden_dim = int(config.get("filters_2", 32))
@@ -295,8 +296,9 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
     gemini_key = os.environ.get("GEMINI_API_KEY")
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    
-    if not gemini_key and not deepseek_key and not openrouter_key:
+    local_url = os.environ.get("LLM_BASE_URL")
+
+    if not gemini_key and not deepseek_key and not openrouter_key and not local_url:
         _warn_harness_simulation("evaluate_test_vault")
         num_blocks = int(best_config.get("num_conv_layers", 1))
         hidden_dim = int(best_config.get("filters_2", 32))

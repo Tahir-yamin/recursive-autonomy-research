@@ -47,9 +47,12 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
     gemini_key = os.environ.get("GEMINI_API_KEY")
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY") or API_KEY_DEFAULT
-    
-    # SRE Fast Simulation Mode (if no API keys are present in environment)
-    if not gemini_key and not deepseek_key and not openrouter_key:
+    # Generic OpenAI-compatible local endpoint (e.g. Ollama/vLLM on a notebook GPU).
+    # When set, this is a *real* inference backend, so simulation must NOT engage.
+    local_url = os.environ.get("LLM_BASE_URL")
+
+    # SRE Fast Simulation Mode (only if NO real backend of any kind is configured)
+    if not gemini_key and not deepseek_key and not openrouter_key and not local_url:
         _warn_simulation_mode("call_llm")
         if "recursively consolidating" in prompt or "You are recursively consolidating" in prompt:
             return "The optimal parameters occupy wider dimensions (filters_2=64) and depth num_conv_layers=3 with LeakyReLU and AdamW (lr=0.01). Failed configurations consistently use SGD and high dropout (0.5)."
@@ -132,9 +135,12 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
             "temperature": 0.2
         }
     else:
-        url = "https://openrouter.ai/api/v1/chat/completions"
+        # OpenAI-compatible path: OpenRouter by default, or a local endpoint
+        # (Ollama/vLLM) when LLM_BASE_URL is set. Same request schema for both.
+        url = local_url or "https://openrouter.ai/api/v1/chat/completions"
+        auth_key = openrouter_key or os.environ.get("LLM_API_KEY", "local")
         headers = {
-            "Authorization": f"Bearer {openrouter_key}",
+            "Authorization": f"Bearer {auth_key}",
             "Content-Type": "application/json"
         }
         model_name = os.environ.get("OPENROUTER_MODEL", "nvidia/nemotron-nano-9b-v2:free")
@@ -152,35 +158,48 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
         }
         
     actual_session = session or aiohttp.ClientSession()
+    # Explicit socket-level timeouts so a server that accepts the connection but
+    # never streams a body (common on free-tier queueing) cannot hang us forever.
+    req_timeout = aiohttp.ClientTimeout(total=120, connect=30, sock_connect=30, sock_read=90)
+
+    async def _do_request():
+        async with actual_session.post(url, headers=headers, json=payload,
+                                       timeout=req_timeout) as response:
+            status = response.status
+            if status == 200:
+                return status, await response.json()
+            return status, await response.text()
+
     try:
         for attempt in range(5):
             try:
-                async with actual_session.post(url, headers=headers, json=payload, timeout=180) as response:
-                    if response.status == 200:
-                        res_data = await response.json()
-                        if is_gemini:
-                            return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                        else:
-                            # Reasoning models may return content=None when the token
-                            # budget is exhausted by the reasoning trace; treat that as a
-                            # transient failure so the retry loop (or heuristic) handles it.
-                            content = res_data["choices"][0]["message"].get("content")
-                            if content:
-                                return content.strip()
-                            log.warning("LLM returned empty content (likely reasoning-token "
-                                        "exhaustion); retrying with backoff.")
-                            await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
-                            continue
-                    elif response.status == 429:
-                        # SRE Hardening: Exponential backoff with jitter on rate-limits (no fast exit)
-                        backoff = 2.0 * (2 ** attempt) + np.random.uniform(0.1, 1.0)
-                        print(f"Rate limited (429). Retrying after {backoff:.2f}s backoff...")
-                        await asyncio.sleep(backoff)
-                    else:
-                        print(f"API Error {response.status}: {await response.text()}")
-                        await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
+                # Hard ceiling independent of aiohttp's internal timer (belt and
+                # suspenders against any concurrency-related stall).
+                status, body = await asyncio.wait_for(_do_request(), timeout=130)
+                if status == 200:
+                    res_data = body
+                    if is_gemini:
+                        return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    # Reasoning models may return content=None when the token budget
+                    # is exhausted by the reasoning trace; treat as transient failure.
+                    content = res_data["choices"][0]["message"].get("content")
+                    if content:
+                        return content.strip()
+                    log.warning("LLM returned empty content (likely reasoning-token "
+                                "exhaustion); retrying with backoff.")
+                    await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
+                elif status == 429:
+                    backoff = 2.0 * (2 ** attempt) + np.random.uniform(0.1, 1.0)
+                    log.warning("Rate limited (429). Retrying after %.2fs backoff...", backoff)
+                    await asyncio.sleep(backoff)
+                else:
+                    log.error("API Error %s: %s", status, str(body)[:200])
+                    await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
+            except asyncio.TimeoutError:
+                log.warning("LLM call timed out (attempt %d/5); backing off.", attempt + 1)
+                await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
             except Exception as e:
-                print(f"Connection error: {e}")
+                log.error("Connection error: %s", e)
                 await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
     finally:
         if session is None:
@@ -495,10 +514,9 @@ def _cpu_louvain_partition(all_trials):
     try:
         if G.number_of_edges() > 0:
             communities = list(louvain_communities(G, weight='weight', seed=42))
-            
+
             # Verify modularity maximization axiom (must be positive)
-            from networkx.community.quality import modularity
-            mod_val = modularity(G, communities, weight='weight')
+            mod_val = nx.community.modularity(G, communities, weight='weight')
             if mod_val <= 0.0:
                 # Modularity gain is not positive; fallback to treating each node as a community to maintain search diversity
                 communities = [{i} for i in range(n)]
@@ -729,14 +747,41 @@ async def execute_campaign():
             "heuristic_proposal_counts": []  # per-seed: # of heuristic fallbacks
         }
 
+    # --- Cross-run accumulation (per-seed checkpointing) ----------------------
+    # Free-tier daily caps mean a full campaign may span several runs. We persist
+    # each completed seed to partial_results.json and skip seeds already done, so
+    # results accumulate across runs/keys/days instead of restarting from scratch.
+    PARTIAL_PATH = os.path.join(OUTPUT_DIR, "partial_results.json")
+    completed_seeds = set()
+    if os.path.exists(PARTIAL_PATH):
+        try:
+            with open(PARTIAL_PATH, "r", encoding="utf-8") as f:
+                _partial = json.load(f)
+            if _partial.get("conditions"):
+                campaign_results = _partial["conditions"] and {
+                    **campaign_results, "conditions": _partial["conditions"]}
+            completed_seeds = set(_partial.get("completed_seeds", []))
+            log.info("Resuming from %d completed seeds: %s",
+                     len(completed_seeds), sorted(completed_seeds))
+        except Exception as e:
+            log.warning("Could not load partial_results.json (%s); starting fresh.", e)
+
+    def _save_partial():
+        with open(PARTIAL_PATH, "w", encoding="utf-8") as f:
+            json.dump({"completed_seeds": sorted(completed_seeds),
+                       "conditions": campaign_results["conditions"]}, f, indent=2)
+
     # SRE Hardening: Maintain a single ClientSession with persistent TCPConnector keep-alive pooling to prevent socket exhaustion
     connector = aiohttp.TCPConnector(limit=10, keepalive_timeout=30)
     async with aiohttp.ClientSession(connector=connector) as session:
         for seed in SEEDS:
+            if seed in completed_seeds:
+                log.info("Seed %s already complete (checkpoint); skipping.", seed)
+                continue
             print(f"\n========================================================")
             print(f"> STARTING SEED CAMPAIGN: {seed}")
             print(f"========================================================")
-            
+
             conditions_list = ["stateless_baseline", "vector_rag", "rar_compressed"]
             for cond_idx, cond in enumerate(conditions_list):
                 wal_path = get_wal_path(cond, seed)
@@ -922,7 +967,14 @@ Your response MUST contain a single, clean JSON block in the format:
                 
                 # Clear isolated WAL logs on success
                 clear_wal(wal_path)
-            
+
+            # Seed fully complete (all 3 conditions) — checkpoint to disk so the
+            # campaign can resume here on the next run (free-tier daily cap).
+            completed_seeds.add(seed)
+            _save_partial()
+            log.info("Seed %s complete and checkpointed (%d seeds done so far).",
+                     seed, len(completed_seeds))
+
     # --- STATISTICAL AUDIT & RESULTS SERIALIZATION ----------------------------
     try:
         w_stat, p_val = wilcoxon(
@@ -931,12 +983,16 @@ Your response MUST contain a single, clean JSON block in the format:
             alternative="greater"
         )
         p_val_str = f"{p_val:.4f}"
-    except Exception:
-        p_val_str = "n.s. (insufficient variance)"
-        
+    except Exception as e:
+        # Do NOT emit a "n.s."-style string that reads like a real statistical
+        # outcome; mark it explicitly as an error and log the cause (BL-11.2).
+        log.error("Wilcoxon test failed: %s", e, exc_info=True)
+        p_val_str = "STAT_ERROR"
+
+    all_seeds = sorted(completed_seeds) if completed_seeds else SEEDS
     results_to_save = {
         "meta": "Upgrade campaign with PyTorch Residual MLP hyperparameter search on dynamic synthetic manifold",
-        "SEEDS": SEEDS,
+        "SEEDS": all_seeds,
         "CYCLES": CYCLES,
         "wilcoxon_p_value_RAR_vs_Baseline": p_val_str,
         "data": campaign_results
