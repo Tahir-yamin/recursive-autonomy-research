@@ -14,6 +14,18 @@ log = logging.getLogger(__name__)
 # Pin to 1 thread: prevents CPU cache thrashing under asyncio/PyTorch co-execution.
 torch.set_num_threads(1)
 
+def _select_device():
+    """Pick the torch device, honoring RAR_TORCH_DEVICE override.
+    Set RAR_TORCH_DEVICE=cpu to force CPU training (e.g. when the host GPU's
+    compute capability is unsupported by the installed torch build, such as a
+    Pascal P100 under a cu12.8 wheel). The tiny MLPs train in milliseconds on
+    CPU, so this is a safe, results-identical fallback while a separate process
+    (e.g. an Ollama LLM server) keeps the GPU."""
+    forced = os.environ.get("RAR_TORCH_DEVICE")
+    if forced:
+        return torch.device(forced)
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 _HARNESS_SIM_WARNED = False
 def _warn_harness_simulation(where: str) -> None:
     """One-time warning when the training harness falls back to synthetic scoring."""
@@ -188,9 +200,9 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
     set_seed(dataset_seed)
     
     # Detect GPU acceleration and setup custom stream
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    pin_mem = torch.cuda.is_available()
-    stream = torch.cuda.Stream() if torch.cuda.is_available() else None
+    device = _select_device()
+    pin_mem = (device.type == "cuda")
+    stream = torch.cuda.Stream() if device.type == "cuda" else None
     
     # Parse configuration hyperparameters
     num_blocks = int(config.get("num_conv_layers", 1))
@@ -338,9 +350,9 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
     # Load all splits, extracting the test split
     X_train, y_train, X_val, y_val, X_test, y_test = generate_synthetic_manifold(n_samples=4000, seed=dataset_seed)
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    pin_mem = torch.cuda.is_available()
-    stream = torch.cuda.Stream() if torch.cuda.is_available() else None
+    device = _select_device()
+    pin_mem = (device.type == "cuda")
+    stream = torch.cuda.Stream() if device.type == "cuda" else None
     
     num_blocks = int(best_config.get("num_conv_layers", 1))
     hidden_dim = int(best_config.get("filters_2", 32))
