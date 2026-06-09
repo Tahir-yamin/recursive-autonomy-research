@@ -100,4 +100,10 @@ early stopping patience=8.
 - 2026-06-08: **Phase 0 COMPLETE.** Built warmup+cosine / 40-epoch / early-stopping training
   and a 10-class Task A. Tuned difficulty across 4 iterations until learnable AND
   discriminating (too-easy 2.9pp gap -> too-hard 57% ceiling -> locked at strong 82.5% /
-  weak 56% / 26.7pp gap, stable over seeds 42/7/13). Gate PASSED. Ready for Phase 1.
+  weak 56% / 26.7pp gap, stable over seeds 42/7/13). Gate PASSED.
+- 2026-06-08: **Phase 0 EXTENDED (Colab).** Owner ran deep characterisation on GPU:
+  architecture sweep (strong ceiling 82.2% -> 91.1% refined; 91.3% at 7x768 = manifold
+  ceiling), LR sweep (1e-2 optimal), efficiency analysis, confusion-matrix + t-SNE error
+  analysis (Class 3<->9 geometric overlap, proximity 1.12x). Full record + 15 figures in
+  `phase0/PHASE0_RECORD.md`. Search-space bounds for Phase 1 now set (depth<=7, width<=512,
+  LR<=1e-2). Ready for Phase 1.
