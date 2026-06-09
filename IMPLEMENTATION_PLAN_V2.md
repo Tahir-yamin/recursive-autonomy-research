@@ -32,15 +32,23 @@ n_classes=10, n_clusters_per_class=2, class_sep=1.3, flip_y=0.02)` + warp
 `X + 0.4*tanh(0.7X) + 0.3*sin(Xpi)`. Training: AdamW + warmup(2) + cosine, 40 epochs,
 early stopping patience=8.
 
-## Phase 1 — Build the two benchmarks
-- [ ] **Task A (primary):** harder synthetic manifold (10 classes, 64 features, lower
-      class separation). Agent searches **architecture + regularization** (depth, width,
-      dropout, weight-decay, label-smoothing). **LR schedule fixed** (clean accuracy signal).
-- [ ] **Task B (generality):** real small dataset (sklearn `digits` or UCI). Agent search
-      **includes LR** (realistic HPO).
-- [ ] Verbose per-cycle logs (~700 chars) so the stateless baseline genuinely overflows
-      `C_max` and truncates.
-- [ ] Add `TASK` env switch to select task family.
+## Phase 1 — Build the two benchmarks ✅ COMPLETE
+- [x] **Task A (primary):** Phase-0-validated 10-class manifold (`rar_tasks.make_task_a`).
+- [x] **Task B (generality):** real sklearn `digits` (64-feat, 10-class) (`rar_tasks.make_task_b`).
+- [x] Verbose per-cycle logs + **explicit `C_MAX` truncation** for the stateless baseline
+      (`format_trial_verbose` + `truncate_to_budget`): at long horizons old trials fall out of
+      context -> genuine rot. (Also fixes a paper/code mismatch: manuscript claimed truncation
+      the code never implemented.)
+- [x] Add `TASK` env switch (`rar_tasks.get_dataset`).
+- [x] **Training upgraded to the Phase-0 procedure** (`_train_one`: warmup+cosine, 40 epochs,
+      early stopping) in `run_deep_learning_harness.py`; model now 10-class.
+- [x] **SEARCH_SPACE expanded** to validated ranges (depth<=7, width<=512, lr<=1e-2).
+- [x] **Verified:** harness reproduces Phase-0 range through campaign code (strong 88% / weak 54%);
+      full local end-to-end smoke (real training + heuristic proposals) runs with 0 errors.
+
+> Simplification (honest deviation from plan): one search space is used for both tasks
+> (LR included in both) rather than fixing LR for Task A — simpler and still realistic HPO;
+> weight-decay/label-smoothing are fixed at the Phase-0 values, not searched.
 
 ## Phase 2 — Instrumentation (Q1 credibility)
 - [ ] Log per cycle to JSON: **best-found accuracy so far**

@@ -304,28 +304,63 @@ _seeds_env = os.environ.get("RAR_SEEDS", "")
 SEEDS = [int(s) for s in _seeds_env.split(",") if s.strip()] if _seeds_env else _DEFAULT_SEEDS
 MAX_TRIAL_MEMORY = 50  # Parent state-eviction sliding window to prevent linear heap fragmentation
 
+# Expanded to the Phase-0-validated ranges: depth/width reach the high-accuracy region
+# (~91% ceiling) so search quality is visible; lr capped at 1e-2 (5e-2 was unstable).
 SEARCH_SPACE = {
-    "num_conv_layers": [1, 2, 3],
-    "filters_2": [16, 32, 64],
+    "num_conv_layers": [2, 3, 4, 5, 7],
+    "filters_2": [32, 64, 128, 256, 512],
     "activation": ["ReLU", "ELU", "LeakyReLU"],
-    "dropout_rate": [0.0, 0.2, 0.5],
+    "dropout_rate": [0.0, 0.05, 0.1, 0.2],
     "optimizer": ["AdamW", "SGD"],
-    "lr": [0.0001, 0.001, 0.01, 0.05],
-    "batch_size": [16, 32, 64]
+    "lr": [0.0001, 0.001, 0.01],
+    "batch_size": [32, 64, 128]
 }
 
 SEARCH_SPACE_PROMPT = """
-Residual MLP Hyperparameter Search Space:
-- num_conv_layers: [1, 2, 3] (maps to number of residual MLP blocks)
-- filters_2: [16, 32, 64] (maps to hidden layer dimension/width of MLP blocks)
+Residual MLP Hyperparameter Search Space (10-class classification):
+- num_conv_layers: [2, 3, 4, 5, 7] (number of residual MLP blocks; deeper fits the harder manifold)
+- filters_2: [32, 64, 128, 256, 512] (hidden width; larger needed for high accuracy)
 - activation: ['ReLU', 'ELU', 'LeakyReLU']
-- dropout_rate: [0.0, 0.2, 0.5]
+- dropout_rate: [0.0, 0.05, 0.1, 0.2]
 - optimizer: ['AdamW', 'SGD']
-- lr: [0.0001, 0.001, 0.01, 0.05]
-- batch_size: [16, 32, 64]
+- lr: [0.0001, 0.001, 0.01] (peak LR under a warmup+cosine schedule; 0.01 is typically best)
+- batch_size: [32, 64, 128]
 
-Your objective is to propose a new, untried hyperparameter configuration that maximizes PyTorch Residual MLP validation accuracy on the dynamic synthetic manifold dataset.
+Training uses warmup + cosine annealing, 40 epochs, early stopping. Weight decay and
+label smoothing are fixed. Propose a new, untried configuration that maximizes validation
+accuracy. Good solutions reach ~85-91%; weak ones stay near 55-60%.
 """
+
+# --- Context budget & verbose logging (saturation mechanism) ------------------
+# The stateless baseline truncates its accumulated log to C_MAX characters, so at long
+# horizons it genuinely forgets older trials (the context-rot mechanism the paper studies).
+# Verbose per-trial entries make the log pressure the budget realistically.
+C_MAX = int(os.environ.get("RAR_CMAX", "4000"))
+
+def format_trial_verbose(t):
+    """Verbose per-trial log entry (~300-400 chars) so accumulated history realistically
+    pressures the context window, inducing genuine saturation in the stateless baseline."""
+    c = t["config"]
+    region = "strong region" if t["acc"] >= 0.75 else ("weak region" if t["acc"] < 0.60 else "mid region")
+    return (f"- Trial: arch(blocks={c.get('num_conv_layers')}, width={c.get('filters_2')}, "
+            f"act={c.get('activation')}, dropout={c.get('dropout_rate')}), "
+            f"optim={c.get('optimizer')}, lr={c.get('lr')}, batch={c.get('batch_size')} "
+            f"-> val_acc={t['acc']:.4f}{' [REDUNDANT]' if t.get('redundant') else ''}. "
+            f"Note: evaluated on the 10-class manifold; result falls in the {region}.\n")
+
+def truncate_to_budget(header, entries, budget):
+    """Keep the most-recent entries that fit within `budget` chars (after header),
+    mimicking a hard context-window truncation. Returns (text, n_kept, n_total)."""
+    kept, used = [], len(header)
+    for e in reversed(entries):
+        if used + len(e) > budget:
+            break
+        kept.append(e); used += len(e)
+    kept.reverse()
+    text = header + "".join(kept)
+    if len(kept) < len(entries):
+        text += f"[... {len(entries) - len(kept)} older trials truncated (context window full) ...]\n"
+    return text, len(kept), len(entries)
 
 # --- SRE Write-Ahead Logging (WAL) State Machine (Isolative Filenames) ---------
 def get_wal_path(condition, seed):
@@ -835,11 +870,12 @@ async def execute_campaign():
                         
                         # Build context
                         if cond == "stateless_baseline":
-                            history_str = ""
                             if trials:
-                                history_str = "### Prior Trials Evaluated:\n"
-                                for t in trials:
-                                    history_str += f"- Trial: {t['config']}, Accuracy: {t['acc']:.4f}\n"
+                                # Verbose log truncated to C_MAX: at long horizons the oldest
+                                # trials (incl. an early global best) fall out of context -> rot.
+                                entries = [format_trial_verbose(t) for t in trials]
+                                history_str, _kept, _total = truncate_to_budget(
+                                    "### Prior Trials Evaluated:\n", entries, C_MAX)
                             else:
                                 history_str = "This is the very first trial. You have no previous history.\n"
                         elif cond == "vector_rag":
@@ -859,7 +895,7 @@ async def execute_campaign():
                             if raw_history_buffer:
                                 history_str += "### Recent Trial Logs:\n"
                                 for t in raw_history_buffer:
-                                    history_str += f"- Trial: {t['config']}, Accuracy: {t['acc']:.4f}\n"
+                                    history_str += format_trial_verbose(t)
                             elif not compressed_history:
                                 history_str = "This is the very first trial. You have no previous history.\n"
                         
@@ -912,7 +948,7 @@ Your response MUST contain a single, clean JSON block in the format:
                         if cond == "rar_compressed":
                             raw_history_buffer.append(trial_entry)
                              
-                        densities.append(len(prompt) / 4000.0)
+                        densities.append(len(prompt) / float(C_MAX))
                         print(f"  Proposed: {config} -> Val Acc: {acc:.4f} (Redundant: {is_redundant})")
                         
                         # Trigger consolidator background task
