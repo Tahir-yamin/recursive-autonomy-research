@@ -18,3 +18,13 @@ get_out.txt
 *.SIMULATION_BACKUP.json
 .gitignore_tmp
 .env
+
+# Kaggle transient outputs
+kaggle/*/rar/
+kaggle/smoke_out/
+kaggle/final_out/
+kaggle/output/
+kaggle/r60/
+kaggle/poll_out/
+*.gguf
+kaggle/c60/rar/
