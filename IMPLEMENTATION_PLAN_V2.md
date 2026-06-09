@@ -17,13 +17,20 @@ harder, instrumented benchmark.**
 
 ---
 
-## Phase 0 — Learnability gate (BEFORE any campaign)
-- [ ] Add warmup (2 epochs) + cosine annealing LR schedule to `run_deep_learning_harness.py`
-- [ ] Raise budget to 40 epochs with early stopping on validation
-- [ ] Hand-train one *strong* config and one *weak* config on Task A
-- [ ] **GATE:** strong config >= 75% AND (strong - weak) gap >= 20 points
-  - Pass -> proceed to Phase 1
-  - Fail -> adjust task difficulty / training, repeat. **No full campaign until this passes.**
+## Phase 0 — Learnability gate (BEFORE any campaign) ✅ COMPLETE
+- [x] Add warmup (2 epochs) + cosine annealing LR schedule (`phase0_learnability_gate.py`)
+- [x] Raise budget to 40 epochs with early stopping on validation (patience=8)
+- [x] Hand-train one *strong* config and one *weak* config on Task A
+- [x] **GATE PASSED:** strong >= 75% AND (strong - weak) gap >= 20 points, stable over 3 seeds:
+  - seed 42: strong 82.5% / weak 55.8% / **gap 26.7pp**
+  - seed 7:  strong 82.7% / weak 55.5% / **gap 27.2pp**
+  - seed 13: strong 82.5% / weak 57.6% / **gap 24.9pp**
+
+**Locked Task A definition** (10-class, learnable + discriminating):
+`make_classification(n_samples=12000, n_features=64, n_informative=55, n_redundant=0,
+n_classes=10, n_clusters_per_class=2, class_sep=1.3, flip_y=0.02)` + warp
+`X + 0.4*tanh(0.7X) + 0.3*sin(Xpi)`. Training: AdamW + warmup(2) + cosine, 40 epochs,
+early stopping patience=8.
 
 ## Phase 1 — Build the two benchmarks
 - [ ] **Task A (primary):** harder synthetic manifold (10 classes, 64 features, lower
@@ -90,3 +97,7 @@ harder, instrumented benchmark.**
 
 ## Progress log
 - 2026-06-08: Plan created, awaiting "go" to start Phase 0.
+- 2026-06-08: **Phase 0 COMPLETE.** Built warmup+cosine / 40-epoch / early-stopping training
+  and a 10-class Task A. Tuned difficulty across 4 iterations until learnable AND
+  discriminating (too-easy 2.9pp gap -> too-hard 57% ceiling -> locked at strong 82.5% /
+  weak 56% / 26.7pp gap, stable over seeds 42/7/13). Gate PASSED. Ready for Phase 1.
