@@ -2180,4 +2180,81 @@ Test accuracy --- Stateless $40.49\pm1.28\%$, Vector RAG $40.65\pm1.17\%$, RAR $
 $110{,}780$ characters (RAR $-68.4\%$ vs.\ baseline). Mean redundant proposals per 60 cycles ---
 $5.4$ / $39.2$ / $2.7$. These are the numbers reported throughout the main text.
 
+% ==============================================================================
+\section{Benchmark Learnability Validation (Extended Evaluation)}
+\label{sec:benchmark_validation}
+
+A central lesson from the experiment in \cref{sec:results} is that the synthetic
+3-class manifold used there is \emph{too easy to expose context rot}: all three
+conditions plateau near $40\%$, leaving no accuracy headroom in which a search-quality
+effect could appear (\cref{sec:limitations}, L2). Before extending the evaluation we
+therefore introduce and validate a harder benchmark, \textbf{Task~A}, designed so that
+configuration quality is genuinely visible in test accuracy. We report this validation
+here so the benchmark's properties are on record prior to any agentic campaign; no RAR
+result is claimed on Task~A in this paper.
+
+\paragraph{Task A.} A 10-class problem with $64$ features, $55$ informative,
+two clusters per class, and a non-linear element-wise warp
+$X \leftarrow X + 0.4\tanh(0.7X) + 0.3\sin(\pi X)$ applied after generation. The
+two-cluster, low-separation structure makes the decision boundary capacity-sensitive:
+small or over-regularised models cannot fit it, while high-capacity models can.
+
+\paragraph{Learnability gate.} We require that a deliberately strong configuration reach
+$\geq 75\%$ test accuracy and that the gap to a deliberately weak configuration exceed
+$20$ percentage points, using the training procedure of the planned campaign (AdamW with
+a two-epoch linear warmup and cosine annealing, $40$ epochs, early stopping on
+validation). The gate passes stably across three seeds, with a strong-vs-weak gap of
+$24.9$--$27.2$\,pp. A subsequent architecture and learning-rate study lifts the strong
+configuration's ceiling to $91.1\%$ (a 7-block, 768-unit model reaches $91.3\%$, the
+empirical manifold ceiling), against a weak baseline of $56.0\%$---a final dynamic range
+of $35.1$\,pp (\cref{fig:p0_gate}). This range is precisely the property the
+\cref{sec:results} benchmark lacked.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.72\linewidth]{fig_p0_gate.png}
+  \caption{\textbf{Task A learnability.} A weak configuration ($56.0\%$), the gate's
+  strong configuration ($82.2\%$), and a refined strong configuration ($91.1\%$) against
+  the $75\%$ gate threshold. The $35$\,pp spread between weak and refined gives search
+  quality room to register in accuracy.}
+  \label{fig:p0_gate}
+\end{figure}
+
+\paragraph{Training procedure validation.} Under the warmup-plus-cosine schedule, a peak
+learning rate of $10^{-2}$ is optimal; $10^{-4}$ underconverges within budget and
+$5\times10^{-2}$ is marginally less accurate and less stable (\cref{fig:p0_lr}). This
+confirms the design choice to pair the searched learning rate with a schedule rather than
+a flat rate---the failure mode that flattened earlier results.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.72\linewidth]{fig_p0_lr.png}
+  \caption{\textbf{Learning-rate validation on Task A.} Validation-loss trajectories for
+  peak learning rates under the warmup+cosine schedule. $10^{-2}$ converges fastest and
+  deepest; extreme rates degrade.}
+  \label{fig:p0_lr}
+\end{figure}
+
+\paragraph{Error structure.} The residual errors are systematic rather than random. The
+confusion matrix concentrates on a single pair (classes 3 and 9; \cref{fig:p0_err},
+left), and both a centroid analysis (these two class centroids are the closest pair,
+$1.12\times$ nearer than the mean inter-class distance) and a t-SNE projection
+(\cref{fig:p0_err}, right) show the non-linear warp interleaves their boundaries. The
+benchmark thus presents a real, geometry-driven optimisation target rather than label
+noise.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.48\linewidth]{fig_p0_confusion.png}\hfill
+  \includegraphics[width=0.48\linewidth]{fig_p0_tsne.png}
+  \caption{\textbf{Task A error structure.} Left: confusion matrix of the refined model,
+  concentrated on the class 3/9 pair. Right: t-SNE projection of the test features showing
+  the interleaved boundary between the confused classes. Errors are systematic and
+  geometric, not random.}
+  \label{fig:p0_err}
+\end{figure}
+
+Full code, the executable notebook, and all fifteen diagnostic figures are archived in
+\texttt{phase0/} in the repository (\cref{sec:repro}).
+
 \end{document}
