@@ -50,6 +50,15 @@ early stopping patience=8.
 > (LR included in both) rather than fixing LR for Task A — simpler and still realistic HPO;
 > weight-decay/label-smoothing are fixed at the Phase-0 values, not searched.
 
+### Task B revision (post-review)
+The first Task B (`digits`) was found **too easy** (strong 98% / weak 96%, 2pp) — it could
+not test the hypothesis. Key insight (from Colab notebook-3 cell 112): the honest metric is
+the **search-space accuracy spread**, not one hand-picked weak config. `rar_tasks.py` now
+offers hard real tasks — **B=CIFAR-10->PCA-64 (hardest), C=Fashion-MNIST->PCA-64, D=covtype**
+(all leak-free) — and `verify_tasks.py` measures the spread (CPU, no LLM/tokens). Owner to
+run `verify_tasks.py` locally/Colab and report which passes the >=20pp gate; that becomes the
+official Task B. See `TASK_B_OPTIONS.md`. (Awaiting owner verification — not run here.)
+
 ## Phase 2 — Instrumentation (Q1 credibility)
 - [ ] Log per cycle to JSON: **best-found accuracy so far**
 - [ ] Log per cycle: whether the **global-best trial is still in the baseline's context**
