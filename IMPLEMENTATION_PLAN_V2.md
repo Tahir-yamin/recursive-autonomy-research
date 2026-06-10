@@ -142,3 +142,11 @@ version is the canonical one).
   analysis (Class 3<->9 geometric overlap, proximity 1.12x). Full record + 15 figures in
   `phase0/PHASE0_RECORD.md`. Search-space bounds for Phase 1 now set (depth<=7, width<=512,
   LR<=1e-2). Ready for Phase 1.
+
+### Speed fix (post-launch, 2026-06-10)
+First v2 launch was ~10h/seed on CPU (the search now includes 7x512 MLPs ~110s each on
+CPU) -> would never finish in 12h. Fixed: GPU auto-detect with a real CUDA probe + CPU
+fallback (`_select_device`); adaptive epochs (GPU 25 / CPU 10); test-vault inits 5->3;
+Task A samples 12000->8000. On a T4 a 7x512 train drops ~110s->~7s -> N=10x60 ~5-7h.
+**Risk:** Kaggle may assign a P100 (probe fails -> CPU -> degraded/slow); Colab T4 is the
+reliable fast path. Kernel v7 relaunched; Colab notebook updated (re-pull/re-run to get fix).
