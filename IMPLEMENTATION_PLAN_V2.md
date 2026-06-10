@@ -70,12 +70,14 @@ Repo `rar_tasks.py` updated: torchvision CIFAR loader (fast) inside the LEAK-FRE
 PCA before splitting (acceptable for difficulty estimation, NOT for the campaign — the repo
 version is the canonical one).
 
-## Phase 2 — Instrumentation (Q1 credibility)
-- [ ] Log per cycle to JSON: **best-found accuracy so far**
-- [ ] Log per cycle: whether the **global-best trial is still in the baseline's context**
-      (direct evidence of rot)
-- [ ] Keep redundancy / density / tokens / latency tracking (already real)
-- [ ] New plot script: **best-found accuracy vs cycle** (the central figure)
+## Phase 2 — Instrumentation (Q1 credibility) ✅ COMPLETE
+- [x] Log per cycle to JSON: **best-found accuracy so far** (`best_found_trajectories`)
+- [x] Log per cycle: whether the **global-best trial is still visible in the prompt**
+      (`best_in_context_trajectories` — checked against the actual prompt string used)
+- [x] Keep redundancy / density / tokens / latency tracking (already real)
+- [x] New plot script `plot_best_found.py`: best-found vs cycle (95% band) + rot signal
+- [x] Old-checkpoint backfill guard for the new JSON keys (resume-safe)
+- [x] Verified by logic dry-run (no training): visible/truncated detection correct
 
 ## Phase 3 — Pre-registration (commit BEFORE running)
 - [ ] Write `PREREGISTRATION.md`:

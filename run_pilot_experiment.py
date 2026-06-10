@@ -779,7 +779,9 @@ async def execute_campaign():
             "net_tokens": [],
             "generalization_gaps": [],
             "llm_proposal_counts": [],   # per-seed: # of proposals that came from the LLM
-            "heuristic_proposal_counts": []  # per-seed: # of heuristic fallbacks
+            "heuristic_proposal_counts": [],  # per-seed: # of heuristic fallbacks
+            "best_found_trajectories": [],    # per-seed: best-found val acc per cycle (Phase 2)
+            "best_in_context_trajectories": []  # per-seed: global-best visible in prompt? (rot)
         }
 
     # --- Cross-run accumulation (per-seed checkpointing) ----------------------
@@ -795,6 +797,11 @@ async def execute_campaign():
             if _partial.get("conditions"):
                 campaign_results = _partial["conditions"] and {
                     **campaign_results, "conditions": _partial["conditions"]}
+                # Backfill any metric keys missing from older checkpoints
+                for _cd in campaign_results["conditions"].values():
+                    for _k in ("llm_proposal_counts", "heuristic_proposal_counts",
+                               "best_found_trajectories", "best_in_context_trajectories"):
+                        _cd.setdefault(_k, [])
             completed_seeds = set(_partial.get("completed_seeds", []))
             log.info("Resuming from %d completed seeds: %s",
                      len(completed_seeds), sorted(completed_seeds))
@@ -826,6 +833,11 @@ async def execute_campaign():
                 densities = []
                 net_tokens = 0
                 start_cycle = 1
+                # Phase-2 instrumentation: per-cycle best-found accuracy, and whether the
+                # current global-best trial's entry survived into this cycle's prompt
+                # (False = the agent has "forgotten" its best result -> direct rot evidence).
+                best_found_traj = []
+                best_in_context_traj = []
                 
                 compressed_history = ""
                 raw_history_buffer = []
@@ -943,11 +955,24 @@ Your response MUST contain a single, clean JSON block in the format:
                         
                         is_redundant = any(t['config'] == config for t in trials)
                         trial_entry = {"config": config, "acc": acc, "redundant": is_redundant, "mode": mode}
-                        
+
+                        # Phase-2 instrumentation (computed BEFORE appending this trial):
+                        # was the best-so-far trial's record visible in the prompt just used?
+                        if trials:
+                            prev_best = max(trials, key=lambda t: t["acc"])
+                            best_in_context_traj.append(
+                                format_trial_verbose(prev_best) in history_str
+                                or f"{prev_best['acc']:.4f}" in history_str)
+                        else:
+                            best_in_context_traj.append(True)  # first cycle: nothing to forget
+
                         trials.append(trial_entry)
+                        best_found_traj.append(max(t["acc"] for t in trials)
+                                               if len(best_found_traj) == 0
+                                               else max(best_found_traj[-1], acc))
                         if cond == "rar_compressed":
                             raw_history_buffer.append(trial_entry)
-                             
+
                         densities.append(len(prompt) / float(C_MAX))
                         print(f"  Proposed: {config} -> Val Acc: {acc:.4f} (Redundant: {is_redundant})")
                         
@@ -1000,6 +1025,10 @@ Your response MUST contain a single, clean JSON block in the format:
                     sum(1 for t in trials if t.get("mode") == "LLM"))
                 campaign_results["conditions"][cond]["heuristic_proposal_counts"].append(
                     sum(1 for t in trials if t.get("mode") == "heuristic"))
+                campaign_results["conditions"][cond]["best_found_trajectories"].append(
+                    [round(float(a), 4) for a in best_found_traj])
+                campaign_results["conditions"][cond]["best_in_context_trajectories"].append(
+                    [bool(b) for b in best_in_context_traj])
                 
                 # Clear isolated WAL logs on success
                 clear_wal(wal_path)
