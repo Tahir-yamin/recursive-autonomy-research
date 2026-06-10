@@ -79,11 +79,16 @@ version is the canonical one).
 - [x] Old-checkpoint backfill guard for the new JSON keys (resume-safe)
 - [x] Verified by logic dry-run (no training): visible/truncated detection correct
 
-## Phase 3 — Pre-registration (commit BEFORE running)
-- [ ] Write `PREREGISTRATION.md`:
-  - **H1 (primary):** RAR best-found test accuracy > stateless (one-sided Wilcoxon, alpha=0.05)
-  - **H2 (mechanism):** baseline best-found plateaus after context saturates; RAR's does not
-  - **Decision rule:** report whatever happens — positive OR conclusive negative
+## Phase 3 — Pre-registration (commit BEFORE running) ✅ COMPLETE
+- [x] `PREREGISTRATION.md` committed (git history = timestamp), locking:
+  - **H1 (primary):** RAR final best-found TEST accuracy > stateless (one-sided Wilcoxon,
+    alpha=0.05 per task, Holm across the 2 tasks)
+  - **H2 (mechanism):** baseline forgets its global-best (best_in_context -> False) and its
+    best-found curve plateaus after first-forget; RAR retains and continues
+  - **H3 (efficiency):** token reduction replicates (descriptive)
+  - **Decision rule table + analysis plan + "not allowed after commit" list**
+- [x] Kaggle notebook updated for the pre-registered two-task protocol (TASK='A'/'B' switch,
+  per-task output files, Phase-2 summary + central figure in the final cell)
 
 ## Phase 4 — Run (automated on Kaggle)
 - [ ] Conditions: Stateless / Vector-RAG / RAR; **N=10 seeds, 60 cycles**, gemma2:9b local
