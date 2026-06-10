@@ -55,9 +55,20 @@ The first Task B (`digits`) was found **too easy** (strong 98% / weak 96%, 2pp) 
 not test the hypothesis. Key insight (from Colab notebook-3 cell 112): the honest metric is
 the **search-space accuracy spread**, not one hand-picked weak config. `rar_tasks.py` now
 offers hard real tasks — **B=CIFAR-10->PCA-64 (hardest), C=Fashion-MNIST->PCA-64, D=covtype**
-(all leak-free) — and `verify_tasks.py` measures the spread (CPU, no LLM/tokens). Owner to
-run `verify_tasks.py` locally/Colab and report which passes the >=20pp gate; that becomes the
-official Task B. See `TASK_B_OPTIONS.md`. (Awaiting owner verification — not run here.)
+(all leak-free) — and `verify_tasks.py` measures the spread (CPU, no LLM/tokens).
+
+**OWNER VERIFICATION COMPLETE (Colab, 2026-06-10, notebook Phase0_RAR (4) cell 116):**
+| Task | Spread | Verdict |
+|---|---|---|
+| B CIFAR-10->PCA64 | **24.5pp** | **PASS** |
+| C Fashion-MNIST->PCA64 | 19.8pp | FAIL (under 20) |
+| D Covtype | **42.1pp** | PASS |
+
+**DECISION: official Task B = CIFAR-10->PCA-64** (hardest, real, PASS); covtype is backup.
+Repo `rar_tasks.py` updated: torchvision CIFAR loader (fast) inside the LEAK-FREE pipeline
+(split first, Scaler+PCA fit on train only). Note: the Colab quick-verify version fitted
+PCA before splitting (acceptable for difficulty estimation, NOT for the campaign — the repo
+version is the canonical one).
 
 ## Phase 2 — Instrumentation (Q1 credibility)
 - [ ] Log per cycle to JSON: **best-found accuracy so far**
