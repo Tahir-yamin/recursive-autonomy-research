@@ -15,17 +15,29 @@ log = logging.getLogger(__name__)
 # Pin to 1 thread: prevents CPU cache thrashing under asyncio/PyTorch co-execution.
 torch.set_num_threads(1)
 
+_DEVICE_CACHE = None
 def _select_device():
-    """Pick the torch device, honoring RAR_TORCH_DEVICE override.
-    Set RAR_TORCH_DEVICE=cpu to force CPU training (e.g. when the host GPU's
-    compute capability is unsupported by the installed torch build, such as a
-    Pascal P100 under a cu12.8 wheel). The tiny MLPs train in milliseconds on
-    CPU, so this is a safe, results-identical fallback while a separate process
-    (e.g. an Ollama LLM server) keeps the GPU."""
+    """Pick the torch device. RAR_TORCH_DEVICE forces it (e.g. 'cpu'/'cuda').
+    Otherwise auto-detect a *usable* GPU: we actually run a tiny CUDA op, because
+    some GPUs (e.g. Pascal P100 under a cu12.8 wheel) report `is_available()==True`
+    but then fail at kernel launch ('no kernel image for device'). If that probe
+    fails we fall back to CPU. Result is cached so the probe runs once."""
+    global _DEVICE_CACHE
     forced = os.environ.get("RAR_TORCH_DEVICE")
     if forced:
         return torch.device(forced)
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if _DEVICE_CACHE is not None:
+        return _DEVICE_CACHE
+    dev = torch.device("cpu")
+    if torch.cuda.is_available():
+        try:
+            _ = (torch.randn(8, 8, device="cuda") @ torch.randn(8, 8, device="cuda")).sum().item()
+            dev = torch.device("cuda")
+            log.info("GPU usable (%s) -> training on CUDA.", torch.cuda.get_device_name(0))
+        except Exception as e:
+            log.warning("GPU present but unusable (%s) -> training on CPU.", str(e)[:80])
+    _DEVICE_CACHE = dev
+    return dev
 
 _HARNESS_SIM_WARNED = False
 def _warn_harness_simulation(where: str) -> None:
@@ -125,7 +137,12 @@ class DynamicMLP(nn.Module):
 def _train_one(config, Xtr, ytr, Xva, yva, seed, device, epochs=None, warmup=2, patience=8):
     """Phase-0 training: AdamW + linear warmup + cosine annealing + early stopping on val.
     Returns (best_val_acc, best_state_dict, model)."""
-    epochs = int(os.environ.get("RAR_EPOCHS", str(epochs or 40)))
+    # Adaptive default: full fidelity on GPU; a lighter budget on CPU so a CPU-only
+    # host (e.g. an unsupported P100 -> fallback) still completes rather than stalling.
+    if epochs is None and "RAR_EPOCHS" not in os.environ:
+        epochs = 25 if device.type == "cuda" else 10
+    else:
+        epochs = int(os.environ.get("RAR_EPOCHS", str(epochs or 25)))
     set_seed(seed)
     n_classes = int(np.max(ytr)) + 1
     bs = int(config["batch_size"]); base_lr = float(config["lr"])
@@ -284,7 +301,8 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
     device = _select_device()
     tel = DataLoader(TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test)), batch_size=256)
     test_accuracies = []
-    for i in range(5):
+    n_inits = int(os.environ.get("RAR_VAULT_INITS", "3"))  # 3 inits (was 5) for speed
+    for i in range(n_inits):
         try:
             _, state, model = _train_one(best_config, X_train, y_train, X_val, y_val, dataset_seed + i*100, device)
             if state: model.load_state_dict(state)

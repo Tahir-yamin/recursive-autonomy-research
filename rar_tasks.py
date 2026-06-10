@@ -49,7 +49,7 @@ def _split_with_pca(X, y, seed, n_comp=N_FEATURES):
 
 
 # --- Task A: validated synthetic manifold ------------------------------------
-def make_task_a(n_samples=12000, seed=42):
+def make_task_a(n_samples=8000, seed=42):
     X, y = make_classification(
         n_samples=n_samples, n_features=N_FEATURES, n_informative=55, n_redundant=0,
         n_repeated=0, n_classes=10, n_clusters_per_class=2, class_sep=1.3,
