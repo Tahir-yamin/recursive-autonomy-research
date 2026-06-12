@@ -1,0 +1,13 @@
+{
+  "id": "mtahiryamin/rar-n10-task-b",
+  "title": "RAR N10 Task B CIFAR",
+  "code_file": "RAR_N10_TaskB.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}
