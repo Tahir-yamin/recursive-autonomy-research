@@ -1,0 +1,13 @@
+{
+  "id": "tahiryamin2050/rar-taskb-fullgpu",
+  "title": "RAR TaskB FullGPU",
+  "code_file": "RAR_N10_TaskB.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}
