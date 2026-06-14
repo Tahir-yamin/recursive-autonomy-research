@@ -174,7 +174,73 @@ def fig6():
     fig.savefig("fig6_pareto.png"); plt.close(fig)
 
 
+# ---- fig7: multi-metric radar -------------------------------------------
+def fig7():
+    axes = ["Accuracy", "Token\nfrugality", "Context\ncompactness", "Speed"]
+    acc = {c: mean(c, "test_accuracies") for c in COND}
+    tok = {c: mean(c, "net_tokens") for c in COND}
+    den = {c: mean(c, "prompt_densities") for c in COND}
+    lat = {c: mean(c, "wall_clock_latencies") for c in COND}
+    bestacc = max(acc.values()); mintok = min(tok.values())
+    minden = min(den.values()); minlat = min(lat.values())
+    vals = {c: [acc[c]/bestacc, mintok/tok[c], minden/den[c], minlat/lat[c]] for c in COND}
+    ang = np.linspace(0, 2*np.pi, len(axes), endpoint=False).tolist()
+    ang += ang[:1]
+    fig, ax = plt.subplots(figsize=(6.6, 6.2), subplot_kw=dict(polar=True))
+    names = ["Stateless baseline", "Vector RAG", "RAR compressed"]
+    for c, nm in zip(COND, names):
+        v = vals[c] + vals[c][:1]
+        ax.plot(ang, v, color=CLR[c], lw=2, label=nm)
+        ax.fill(ang, v, color=CLR[c], alpha=0.12)
+    ax.set_xticks(ang[:-1]); ax.set_xticklabels(axes, fontsize=11)
+    ax.set_yticks([0.25, 0.5, 0.75, 1.0]); ax.set_yticklabels(["", "", "", ""])
+    ax.set_ylim(0, 1.05)
+    ax.set_title("Normalized multi-metric profile\n(1.0 = best on each axis)", pad=22)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=3, frameon=False, fontsize=9)
+    fig.tight_layout()
+    fig.savefig("fig7_radar.png"); plt.close(fig)
+
+
+# ---- fig8: wall-clock latency -------------------------------------------
+def fig8():
+    fig, ax = plt.subplots(figsize=(7.0, 4.2))
+    lat = [mean(c, "wall_clock_latencies") for c in COND]
+    err = [sd(c, "wall_clock_latencies") for c in COND]
+    bars = ax.bar(NICE, lat, yerr=err, capsize=4, color=COLORS, alpha=0.9,
+                  width=0.6, edgecolor="white")
+    for b, v in zip(bars, lat):
+        ax.text(b.get_x()+b.get_width()/2, v+8, f"{v:.0f}s", ha="center", fontsize=10)
+    ax.set_ylabel("Mean per-seed wall-clock (s)")
+    ax.set_title("RAR latency stays below the stateless baseline")
+    ax.set_ylim(0, max(lat)*1.2)
+    fig.tight_layout()
+    fig.savefig("fig8_latency.png"); plt.close(fig)
+
+
+# ---- fig9: RAR reductions vs baseline -----------------------------------
+def fig9():
+    fig, ax = plt.subplots(figsize=(7.2, 3.6))
+    b = lambda m: mean("stateless_baseline", m)
+    r = lambda m: mean("rar_compressed", m)
+    metrics = ["Net tokens", "Context density", "Wall-clock latency"]
+    red = [(1 - r("net_tokens")/b("net_tokens"))*100,
+           (1 - r("prompt_densities")/b("prompt_densities"))*100,
+           (1 - r("wall_clock_latencies")/b("wall_clock_latencies"))*100]
+    y = np.arange(len(metrics))
+    ax.barh(y, red, color="#2FA89B", alpha=0.9, height=0.55, edgecolor="white")
+    for yi, v in zip(y, red):
+        ax.text(v-2, yi, f"-{v:.1f}%", va="center", ha="right", color="white", fontsize=11)
+    ax.set_yticks(y); ax.set_yticklabels(metrics)
+    ax.invert_yaxis()
+    ax.set_xlabel("Reduction vs stateless baseline (%)")
+    ax.set_title("What RAR cuts at equal accuracy")
+    ax.set_xlim(0, 100)
+    fig.tight_layout()
+    fig.savefig("fig9_reductions.png"); plt.close(fig)
+
+
 if __name__ == "__main__":
-    fig2(); fig3(); fig4(); fig5(); fig6()
+    fig2(); fig3(); fig4(); fig5(); fig6(); fig7(); fig8(); fig9()
     print("Wrote: fig2_crs_trajectory.png fig3_density.png fig4_ablation_bar.png "
-          "fig5_degradation.png fig6_pareto.png")
+          "fig5_degradation.png fig6_pareto.png fig7_radar.png fig8_latency.png "
+          "fig9_reductions.png")
