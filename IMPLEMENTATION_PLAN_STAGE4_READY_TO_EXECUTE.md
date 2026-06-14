@@ -315,7 +315,7 @@ We have appended and integrated the unvarnished feedback from all 15 senior peer
 *   **Resolution:**
     *   Cleaned custom vertical spacing and rules in `main.tex`. Replaced all invalid `\mathbf` occurrences with standard `\textbf` in Table 1 to ensure warning-free compilation.
     *   Replaced the toy classification setup with a dynamic, non-linear Gaussian quantiles classification manifold.
-    *   Scaled the evaluation campaign to $N=10$ random seeds, yielding a valid and highly significant Wilcoxon signed-rank test $p$-value of **$0.0010$** ($p < 0.05$).
+    *   Scaled the evaluation campaign to $N=10$ random seeds over 60-cycle horizons. The real Wilcoxon signed-rank test returns **$p = 0.2461$ (not significant)**; the accuracy-superiority claim is withdrawn and the contribution reframed as efficiency at parity (70.0% net token reduction, 72.5% density reduction).
     *   Updated Table 1 and paragraphs to show that Louvain partitioning groups hyperparameters into distinct functional regions, preventing localized optimization stagnation.
 
 ### 💻 2. ACM TODS Reviewer
@@ -351,7 +351,7 @@ We have appended and integrated the unvarnished feedback from all 15 senior peer
 ### 🧑‍🏫 7. JMLR Editor
 *   **Critique:** Sloppy mathematical definitions, statistical fraud (claiming significance on $N=3$, mismatched Table 1 vs logs).
 *   **Resolution:**
-    *   Formalized Definitions and Table 1 metrics to align exactly with `pilot_results.json` (Val: 45.81%, Test: 44.17%, net token savings of -23.0%, $p$-value: 0.0010).
+    *   Formalized Definitions and aligned Table 1 metrics exactly with the real `pilot_results.json` ($N=10$, 60 cycles): RAR Val 42.75%, Test 40.50% vs Baseline Test 40.12% (Wilcoxon $p = 0.2461$, not significant), net token savings of -70.0%.
 
 ### 🤖 8. Hugging Face Production Lead
 *   **Critique:** Buzzwords in abstract and conclusion, parameter/token efficiency mismatch.

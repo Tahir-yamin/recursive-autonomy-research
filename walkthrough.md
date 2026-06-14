@@ -31,12 +31,12 @@ Following the user's explicit request, we resolved all 10 unvarnished critiques 
 
 ## 📊 Live Physical Pilot Results (Verifiable Audit Trail)
 
-We executed the complete physical tuning campaign over independent random seeds and 10 cycles, routing to Nemotron-Nano-9B-v2 via OpenRouter (using our standardized unified fallback engine when rate-limits were induced). All outputs are serialized to [pilot_results.json](file:///C:/Users/Administrator/.gemini/antigravity/scratch/recursive-lm-paper/pilot_results.json):
+We executed the complete physical tuning campaign over $N=10$ independent random seeds and **60 cycles**, routing to **openai/gpt-oss-20b:free** via OpenRouter (using our standardized unified fallback engine when rate-limits were induced). All outputs are serialized to [pilot_results.json](pilot_results.json):
 
-* **Stateless Baseline:** Validation Accuracy = **44.95%**; Test Accuracy = **43.19%**
-* **Vector RAG Baseline:** Validation Accuracy = **44.95%**; Test Accuracy = **43.19%**
-* **RAR Compressed (Ours):** Validation Accuracy = **45.81%**; Test Accuracy = **44.18%**
-* **Core Token Efficiency Proof:** RAR Compressed achieved superior validation and test performance while physically delivering a **25.7% prompt context reduction** and **23.0% net token savings** over Stateless Baseline, and a **30.1% prompt context reduction** and **27.1% net token savings** over Vector RAG, proving that Louvain-driven GraphRAG context compression eliminates redundant exploration loops without structural performance decay!
+* **Stateless Baseline:** Validation Accuracy = **42.46%**; Test Accuracy = **40.12%**; Net Tokens = **350,249**
+* **Vector RAG Baseline:** Validation Accuracy = **41.64%**; Test Accuracy = **40.19%**; Net Tokens = **170,502**
+* **RAR Compressed (Ours):** Validation Accuracy = **42.75%**; Test Accuracy = **40.50%**; Net Tokens = **105,055**
+* **Core Token Efficiency Result:** The three conditions are at **accuracy parity** — the one-sided Wilcoxon signed-rank test for RAR exceeding the baseline returns **$p = 0.2461$ (not significant)**, so we make *no* claim of accuracy superiority. The validated contribution is efficiency: RAR delivered a **72.5% prompt context reduction** and **70.0% net token savings** over the Stateless Baseline (and **41.4% / 38.4%** over Vector RAG), holding equal accuracy at roughly one-third of the token budget, with ~4× lower late-cycle redundancy than Vector RAG.
 
 ---
 
