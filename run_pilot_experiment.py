@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import wilcoxon
 from typing import Dict, Any, Optional
 
-# Configure structured logger — replaces bare print() for error/warning paths
+# Structured logger available for diagnostics. NOTE: several hot-path error/
+# warning sites still use print() and remain to be migrated to this logger.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
