@@ -100,6 +100,21 @@ def get_dataset(seed=42):
             class_sep=1.2, flip_y=0.03, random_state=seed)
         X = X.astype(np.float32); y = y.astype(np.int64)
         n_classes = 4
+    elif DATASET == "openml":
+        # Recognizable real tabular task from OpenML (default: 'vehicle', a
+        # 4-class silhouette set). Override with RAR_OPENML_NAME / _VERSION.
+        from sklearn.datasets import fetch_openml
+        name = os.environ.get("RAR_OPENML_NAME", "vehicle")
+        version = int(os.environ.get("RAR_OPENML_VERSION", "1"))
+        d = fetch_openml(name=name, version=version, as_frame=True)
+        Xdf = d.data
+        # one-hot any categorical columns; keep numerics; impute simple
+        Xdf = Xdf.apply(lambda c: c.cat.codes if str(c.dtype) == "category" else c)
+        X = Xdf.to_numpy(dtype=np.float32)
+        X = np.nan_to_num(X)
+        classes, y = np.unique(np.asarray(d.target), return_inverse=True)
+        y = y.astype(np.int64)
+        n_classes = int(len(classes))
     else:
         raise ValueError(f"Unknown RAR_DATASET={DATASET!r}")
 
