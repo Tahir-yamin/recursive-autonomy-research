@@ -398,8 +398,15 @@ The empirical trajectories for CRS and context density are plotted in \cref{fig:
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.9\linewidth]{fig2_crs_trajectory.png}
-  \caption{\textbf{Empirical pilot results on the Gaussian quantile manifold ($N{=}10$ seeds, 60 cycles).} Left: Test accuracy curves per seed. Right: Context density $\delta$ and net token tradeoffs. RAR holds $\delta = 0.387$, comfortably below the $\delta = 0.58$ rot threshold, across all seeds, yielding a 70.0\% net token saving at test-accuracy parity with the baseline ($40.12\%$ vs $40.50\%$; Wilcoxon $p = 0.25$, not significant).}
+  \caption{\textbf{Empirical pilot results on the Gaussian quantile manifold ($N{=}10$ seeds, 60 cycles).} Left: the test-accuracy distribution across all ten seeds per condition (box = interquartile range, points = individual seeds); the three conditions overlap heavily and the RAR-vs-baseline Wilcoxon test is not significant ($p = 0.2461$). Right: mean net token cost per condition---RAR uses 70.0\% fewer tokens than the Stateless Baseline and 38.4\% fewer than Vector RAG. Together the panels show equal accuracy at a fraction of the token budget.}
   \label{fig:crs}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\linewidth]{fig6_pareto.png}
+  \caption{\textbf{Accuracy--cost Pareto view.} Each faint point is one seed; the large markers are condition means. Accuracy sits in a tight $\sim$40\% band across all conditions, so the only axis that moves is cost: RAR occupies the cheapest corner of the frontier, matching baseline accuracy at roughly one-third of the tokens.}
+  \label{fig:pareto}
 \end{figure}
 
 \begin{figure}[htbp]
@@ -414,12 +421,12 @@ The empirical trajectories for CRS and context density are plotted in \cref{fig:
 
 The three-condition design isolates compression and retrieval strategy. Our physical validation campaign confirms that context compression alone accounts for the observed efficiency gains---the 70.0\% token reduction and 72.5\% density reduction---while holding accuracy at parity with the stateless baseline. Stepping back, we observe that at the present scale (9 dimensions, 60 cycles), the search space does not yet exhibit the multi-cluster community structure that would make GraphRAG community summaries highly beneficial; neither memory-augmented condition produced a statistically significant accuracy gain over the stateless baseline, so the additional token overhead of graph-based community synthesis is not yet justified at this scale.
 
-\Cref{fig:ablation} illustrates the coherence retention (CRS) difference between the Stateless Baseline and RAR Compressed across early (Cycles~1--5) and late (Cycles~6--10) search phases. Our practical recommendation is staged deployment: implement the core context manager first (RAR--NoKM), and introduce graph-based community detection only when campaign lengths exceed 50 cycles.
+\Cref{fig:ablation} contrasts late-cycle exploration redundancy across the three conditions. The Stateless Baseline rarely repeats configurations ($0.4 \pm 0.7$) because, lacking memory, it samples the space broadly; Vector RAG incurs by far the most redundancy ($33.2 \pm 3.3$) as cosine retrieval keeps resurfacing similar high-scoring neighbours; RAR sits in between ($7.8 \pm 4.3$), roughly a four-fold reduction over Vector RAG, because compression preserves a directed yet compact search trajectory. Our practical recommendation is staged deployment: implement the core context manager first (RAR--NoKM), and introduce graph-based community detection only when campaign lengths exceed 50 cycles.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.7\linewidth]{fig4_ablation_bar.png}
-  \caption{\textbf{Ablation: Coherence Retention by Search Phase.} Stateless Baseline CRS degrades from 1.0 (early) to 0.8 (late), while RAR Compressed maintains CRS $\geq 0.90$ across both phases, confirming that context compression accounts for the primary coherence gains.}
+  \caption{\textbf{Late-cycle exploration redundancy by condition} ($N{=}10$ seeds, mean $\pm$ s.d.). Vector RAG re-proposes near-duplicate configurations far more than the other conditions; RAR's compression keeps redundancy roughly $4\times$ lower than Vector RAG while still consolidating search history.}
   \label{fig:ablation}
 \end{figure}
 
