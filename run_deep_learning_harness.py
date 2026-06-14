@@ -1,6 +1,4 @@
 import os
-import math
-import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,46 +8,9 @@ from sklearn.datasets import make_gaussian_quantiles
 from sklearn.model_selection import train_test_split
 import gc
 
-log = logging.getLogger(__name__)
-
-# Pin to 1 thread: prevents CPU cache thrashing under asyncio/PyTorch co-execution.
-torch.set_num_threads(1)
-
-_DEVICE_CACHE = None
-def _select_device():
-    """Pick the torch device. RAR_TORCH_DEVICE forces it (e.g. 'cpu'/'cuda').
-    Otherwise auto-detect a *usable* GPU: we actually run a tiny CUDA op, because
-    some GPUs (e.g. Pascal P100 under a cu12.8 wheel) report `is_available()==True`
-    but then fail at kernel launch ('no kernel image for device'). If that probe
-    fails we fall back to CPU. Result is cached so the probe runs once."""
-    global _DEVICE_CACHE
-    forced = os.environ.get("RAR_TORCH_DEVICE")
-    if forced:
-        return torch.device(forced)
-    if _DEVICE_CACHE is not None:
-        return _DEVICE_CACHE
-    dev = torch.device("cpu")
-    if torch.cuda.is_available():
-        try:
-            _ = (torch.randn(8, 8, device="cuda") @ torch.randn(8, 8, device="cuda")).sum().item()
-            dev = torch.device("cuda")
-            log.info("GPU usable (%s) -> training on CUDA.", torch.cuda.get_device_name(0))
-        except Exception as e:
-            log.warning("GPU present but unusable (%s) -> training on CPU.", str(e)[:80])
-    _DEVICE_CACHE = dev
-    return dev
-
-_HARNESS_SIM_WARNED = False
-def _warn_harness_simulation(where: str) -> None:
-    """One-time warning when the training harness falls back to synthetic scoring."""
-    global _HARNESS_SIM_WARNED
-    if not _HARNESS_SIM_WARNED:
-        log.warning("=" * 64)
-        log.warning("SIMULATION MODE ACTIVE (%s): no API key detected.", where)
-        log.warning("Accuracy is a SYNTHETIC arithmetic stub, NOT real PyTorch training.")
-        log.warning("Set OPENROUTER_API_KEY to run physical training.")
-        log.warning("=" * 64)
-        _HARNESS_SIM_WARNED = True
+# Set intra-op threads dynamically to avoid CPU/event loop thread starvation while maintaining matrix throughput
+import os
+torch.set_num_threads(1)  # Pin to 1 thread: prevents CPU cache thrashing under asyncio/PyTorch co-execution
 
 # Ensure reproducibility
 def set_seed(seed):
@@ -58,16 +19,41 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
-def generate_synthetic_manifold(n_samples=12000, seed=42):
-    """Return the dataset for the current TASK (env: TASK=A default, or TASK=B).
-
-    Task A is the Phase-0-validated 10-class manifold (learnable + discriminating);
-    Task B is the real sklearn digits dataset. Both are 64-feature / 10-class,
-    stratified 50/25/25. See `rar_tasks.py`.
+def generate_synthetic_manifold(n_samples=4000, seed=42):
     """
-    import rar_tasks
+    Generates a highly non-linear, multi-dimensional synthetic manifold dataset.
+    Uses a single make_gaussian_quantiles generation to ensure the training, validation,
+    and testing splits share the same underlying distribution,
+    then splits them strictly to prevent leakage.
+    """
+    import hashlib
     set_seed(seed)
-    return rar_tasks.get_dataset(seed)
+    
+    X, y = make_gaussian_quantiles(
+        n_samples=n_samples,
+        n_features=64,
+        n_classes=3,
+        random_state=seed
+    )
+    
+    # Apply complex multi-dimensional non-linear polynomial and trigonometric warp (Swiss Roll-like curvature)
+    X = X + 0.2 * (X ** 2) - 0.1 * (X ** 3) + 0.5 * np.sin(X * np.pi)
+    X = X.astype(np.float32)
+    y = y.astype(np.int64)
+    
+    # Decoupled cryptographic seed hashing to prevent seed-leakage/correlation
+    hash_seed = int(hashlib.sha256(str(seed).encode('utf-8')).hexdigest(), 16) % 100000
+    
+    # Strict Train-Val-Test 3-Way Split (50% Train: 2000, 25% Val: 1000, 25% Test: 1000)
+    # Using stratified splits to preserve class balances across subsets
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
+        X, y, test_size=0.25, random_state=hash_seed, stratify=y
+    )
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val, y_train_val, test_size=0.3333, random_state=seed, stratify=y_train_val
+    )
+    
+    return X_train, y_train, X_val, y_val, X_test, y_test
 
 # --- PyTorch Permutation-Invariant Residual MLP (Hardened Inductive Bias) -----
 class ResidualBlock(nn.Module):
@@ -100,9 +86,8 @@ class ResidualBlock(nn.Module):
         return self.post_act(x + self.block(x))
 
 class DynamicMLP(nn.Module):
-    def __init__(self, num_blocks=2, hidden_dim=32, activation="ReLU", dropout_rate=0.2, n_classes=10):
+    def __init__(self, num_blocks=2, hidden_dim=32, activation="ReLU", dropout_rate=0.2):
         super(DynamicMLP, self).__init__()
-        self.n_classes = n_classes
         
         if activation == "ReLU":
             act_fn = nn.ReLU
@@ -125,7 +110,7 @@ class DynamicMLP(nn.Module):
         
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, n_classes)
+            nn.Linear(hidden_dim, 3) # 3 classes
         )
         
     def forward(self, x):
@@ -133,54 +118,6 @@ class DynamicMLP(nn.Module):
         x = self.res_blocks(x)
         x = self.classifier(x)
         return x
-
-def _train_one(config, Xtr, ytr, Xva, yva, seed, device, epochs=None, warmup=2, patience=8):
-    """Phase-0 training: AdamW + linear warmup + cosine annealing + early stopping on val.
-    Returns (best_val_acc, best_state_dict, model)."""
-    # Adaptive default: full fidelity on GPU; a lighter budget on CPU so a CPU-only
-    # host (e.g. an unsupported P100 -> fallback) still completes rather than stalling.
-    if epochs is None and "RAR_EPOCHS" not in os.environ:
-        epochs = 25 if device.type == "cuda" else 10
-    else:
-        epochs = int(os.environ.get("RAR_EPOCHS", str(epochs or 25)))
-    set_seed(seed)
-    n_classes = int(np.max(ytr)) + 1
-    bs = int(config["batch_size"]); base_lr = float(config["lr"])
-    wd = float(config.get("weight_decay", 1e-4)); ls = float(config.get("label_smoothing", 0.05))
-    model = DynamicMLP(int(config["num_conv_layers"]), int(config["filters_2"]),
-                       config["activation"], float(config["dropout_rate"]), n_classes=n_classes).to(device)
-    crit = nn.CrossEntropyLoss(label_smoothing=ls)
-    if config.get("optimizer", "AdamW") == "AdamW":
-        opt = optim.AdamW(model.parameters(), lr=base_lr, weight_decay=wd)
-    else:
-        opt = optim.SGD(model.parameters(), lr=base_lr, momentum=0.9, weight_decay=wd)
-    tl = DataLoader(TensorDataset(torch.from_numpy(Xtr), torch.from_numpy(ytr)), batch_size=bs, shuffle=True)
-    vl = DataLoader(TensorDataset(torch.from_numpy(Xva), torch.from_numpy(yva)), batch_size=256)
-    def lr_mult(ep):
-        if ep < warmup: return (ep + 1) / warmup
-        prog = (ep - warmup) / max(1, (epochs - warmup))
-        return 0.5 * (1 + math.cos(math.pi * prog))
-    def vacc():
-        model.eval(); c = t = 0
-        with torch.no_grad():
-            for bx, by in vl:
-                bx, by = bx.to(device), by.to(device)
-                c += (model(bx).argmax(1) == by).sum().item(); t += by.size(0)
-        return c / t
-    best, best_state, bad = 0.0, None, 0
-    for ep in range(epochs):
-        for g in opt.param_groups: g["lr"] = base_lr * lr_mult(ep)
-        model.train()
-        for bx, by in tl:
-            bx, by = bx.to(device), by.to(device)
-            opt.zero_grad(); crit(model(bx), by).backward(); opt.step()
-        va = vacc()
-        if va > best: best, best_state, bad = va, {k: v.clone() for k, v in model.state_dict().items()}, 0
-        else:
-            bad += 1
-            if bad >= patience: break
-    return best, best_state, model
-
 
 # --- Training Harness --------------------------------------------------------
 def train_and_evaluate(config, dataset_seed=42, epochs=15):
@@ -193,10 +130,14 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
     gemini_key = os.environ.get("GEMINI_API_KEY")
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    local_url = os.environ.get("LLM_BASE_URL")
-
-    if not gemini_key and not deepseek_key and not openrouter_key and not local_url:
-        _warn_harness_simulation("train_and_evaluate")
+    
+    if not gemini_key and not deepseek_key and not openrouter_key:
+        if os.environ.get("RAR_SIM") != "1":
+            raise RuntimeError(
+                "train_and_evaluate: No API key found and RAR_SIM!=1. Refusing to "
+                "return a fabricated formula score instead of real PyTorch training. "
+                "Set a real API key, or export RAR_SIM=1 for explicit offline simulation."
+            )
         num_blocks = int(config.get("num_conv_layers", 1))
         hidden_dim = int(config.get("filters_2", 32))
         activation = config.get("activation", "ReLU")
@@ -204,7 +145,7 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
         opt_type = config.get("optimizer", "AdamW")
         lr = float(config.get("lr", 1e-3))
         batch_size = int(config.get("batch_size", 32))
-        
+
         score = 0.380
         if num_blocks == 3: score += 0.025
         elif num_blocks == 2: score += 0.015
@@ -230,19 +171,107 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
         score += np.random.uniform(-0.005, 0.005)
         return float(score)
 
-    # Real training: Phase-0 procedure (warmup+cosine, early stopping) on the active TASK.
-    X_train, y_train, X_val, y_val, _, _ = generate_synthetic_manifold(seed=dataset_seed)
-    device = _select_device()
+    # Load dataset splits (excluding test split for the tuning loop)
+    X_train, y_train, X_val, y_val, _, _ = generate_synthetic_manifold(n_samples=4000, seed=dataset_seed)
+    
+    # Set seed for model initialization and training reproducibility
+    set_seed(dataset_seed)
+    
+    # Detect GPU acceleration and setup custom stream
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    pin_mem = torch.cuda.is_available()
+    stream = torch.cuda.Stream() if torch.cuda.is_available() else None
+    
+    # Parse configuration hyperparameters
+    num_blocks = int(config.get("num_conv_layers", 1))
+    hidden_dim = int(config.get("filters_2", 32))
+    activation = config.get("activation", "ReLU")
+    dropout_rate = float(config.get("dropout_rate", 0.2))
+    opt_type = config.get("optimizer", "AdamW")
+    lr = float(config.get("lr", 1e-3))
+    batch_size = int(config.get("batch_size", 32))
+    
+    # Create DataLoaders
+    train_ds = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
+    val_ds = TensorDataset(torch.from_numpy(X_val), torch.from_numpy(y_val))
+    
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=pin_mem)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, pin_memory=pin_mem)
+    
+    # Instantiate Model and map to accelerator
+    model = DynamicMLP(
+        num_blocks=num_blocks,
+        hidden_dim=hidden_dim,
+        activation=activation,
+        dropout_rate=dropout_rate
+    ).to(device)
+    
+    criterion = nn.CrossEntropyLoss()
+    
+    # Select Optimizer
+    if opt_type == "AdamW":
+        optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    else:
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-4)
+        
     try:
-        best_val, _, _ = _train_one(config, X_train, y_train, X_val, y_val, dataset_seed, device)
-        return float(best_val)
+        # Run inside CUDA stream context to overlap transfer and compute
+        if stream:
+            with torch.cuda.stream(stream):
+                model.train()
+                for epoch in range(epochs):
+                    for bx, by in train_loader:
+                        bx, by = bx.to(device, non_blocking=True), by.to(device, non_blocking=True)
+                        optimizer.zero_grad()
+                        out = model(bx)
+                        loss = criterion(out, by)
+                        loss.backward()
+                        optimizer.step()
+                        
+                model.eval()
+                correct = 0
+                total = 0
+                with torch.no_grad():
+                    for bx, by in val_loader:
+                        bx, by = bx.to(device, non_blocking=True), by.to(device, non_blocking=True)
+                        out = model(bx)
+                        preds = torch.argmax(out, dim=1)
+                        correct += (preds == by).sum().item()
+                        total += by.size(0)
+        else:
+            model.train()
+            for epoch in range(epochs):
+                for bx, by in train_loader:
+                    optimizer.zero_grad()
+                    out = model(bx)
+                    loss = criterion(out, by)
+                    loss.backward()
+                    optimizer.step()
+                    
+            model.eval()
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for bx, by in val_loader:
+                    out = model(bx)
+                    preds = torch.argmax(out, dim=1)
+                    correct += (preds == by).sum().item()
+                    total += by.size(0)
+                    
+        val_acc = correct / total
+        return float(val_acc)
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
-            log.error("CUDA OOM in train_and_evaluate; returning 0.0 fallback.")
-            if torch.cuda.is_available(): torch.cuda.empty_cache()
+            print("CUDA Out of Memory caught. Flushing cache and returning 0.0 validation accuracy fallback.")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return 0.0
-        raise
+        raise e
     finally:
+        # SRE Hardening: Ensure proper stream synchronization prior to cleanup
+        if torch.cuda.is_available() and stream:
+            stream.synchronize()
+        del model, optimizer, train_loader, val_loader, train_ds, val_ds
         gc.collect()
 
 
@@ -257,10 +286,14 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
     gemini_key = os.environ.get("GEMINI_API_KEY")
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-    local_url = os.environ.get("LLM_BASE_URL")
-
-    if not gemini_key and not deepseek_key and not openrouter_key and not local_url:
-        _warn_harness_simulation("evaluate_test_vault")
+    
+    if not gemini_key and not deepseek_key and not openrouter_key:
+        if os.environ.get("RAR_SIM") != "1":
+            raise RuntimeError(
+                "evaluate_test_vault: No API key found and RAR_SIM!=1. Refusing to "
+                "return a fabricated formula score instead of real Test Vault training. "
+                "Set a real API key, or export RAR_SIM=1 for explicit offline simulation."
+            )
         num_blocks = int(best_config.get("num_conv_layers", 1))
         hidden_dim = int(best_config.get("filters_2", 32))
         activation = best_config.get("activation", "ReLU")
@@ -268,7 +301,7 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
         opt_type = best_config.get("optimizer", "AdamW")
         lr = float(best_config.get("lr", 1e-3))
         batch_size = int(best_config.get("batch_size", 32))
-        
+
         score = 0.370 # slightly lower to show generalization gap
         if num_blocks == 3: score += 0.024
         elif num_blocks == 2: score += 0.014
@@ -296,32 +329,115 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
             run_accs.append(score + np.random.uniform(-0.003, 0.003))
         return float(np.mean(run_accs))
 
-    # Real test-vault: 5 inits with the Phase-0 procedure, eval once on the locked test split.
-    X_train, y_train, X_val, y_val, X_test, y_test = generate_synthetic_manifold(seed=dataset_seed)
-    device = _select_device()
-    tel = DataLoader(TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test)), batch_size=256)
-    test_accuracies = []
-    n_inits = int(os.environ.get("RAR_VAULT_INITS", "3"))  # 3 inits (was 5) for speed
-    for i in range(n_inits):
-        try:
-            _, state, model = _train_one(best_config, X_train, y_train, X_val, y_val, dataset_seed + i*100, device)
-            if state: model.load_state_dict(state)
-            model.eval(); c = t = 0
-            with torch.no_grad():
-                for bx, by in tel:
-                    bx, by = bx.to(device), by.to(device)
-                    c += (model(bx).argmax(1) == by).sum().item(); t += by.size(0)
-            test_accuracies.append(c / t)
-            del model
-        except RuntimeError as e:
-            if "out of memory" in str(e).lower():
-                log.error("CUDA OOM in test vault; appending chance fallback.")
-                if torch.cuda.is_available(): torch.cuda.empty_cache()
-                test_accuracies.append(0.1)
+    # Load all splits, extracting the test split
+    X_train, y_train, X_val, y_val, X_test, y_test = generate_synthetic_manifold(n_samples=4000, seed=dataset_seed)
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    pin_mem = torch.cuda.is_available()
+    stream = torch.cuda.Stream() if torch.cuda.is_available() else None
+    
+    num_blocks = int(best_config.get("num_conv_layers", 1))
+    hidden_dim = int(best_config.get("filters_2", 32))
+    activation = best_config.get("activation", "ReLU")
+    dropout_rate = float(best_config.get("dropout_rate", 0.2))
+    opt_type = best_config.get("optimizer", "AdamW")
+    lr = float(best_config.get("lr", 1e-3))
+    batch_size = int(best_config.get("batch_size", 32))
+    
+    # Train strictly on X_train and y_train to maintain strict test isolation and keep data distribution identical (Reviewer 2)
+    train_ds = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
+    test_ds = TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test))
+    
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=pin_mem)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, pin_memory=pin_mem)
+    
+    try:
+        test_accuracies = []
+        
+        # Train 5 times with independent seed offsets for robust statistics
+        for i in range(5):
+            run_seed = dataset_seed + i * 100
+            set_seed(run_seed)
+            
+            model = DynamicMLP(
+                num_blocks=num_blocks,
+                hidden_dim=hidden_dim,
+                activation=activation,
+                dropout_rate=dropout_rate
+            ).to(device)
+            
+            criterion = nn.CrossEntropyLoss()
+            if opt_type == "AdamW":
+                optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
             else:
-                raise
-        finally:
-            gc.collect()
-    mean_test = float(np.mean(test_accuracies))
-    log.info("Test Vault: %s -> %.4f +/- %.4f across 5 inits", best_config, mean_test, float(np.std(test_accuracies)))
-    return mean_test
+                optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-4)
+                
+            try:
+                if stream:
+                    with torch.cuda.stream(stream):
+                        model.train()
+                        for epoch in range(epochs):
+                            for bx, by in train_loader:
+                                bx, by = bx.to(device, non_blocking=True), by.to(device, non_blocking=True)
+                                optimizer.zero_grad()
+                                out = model(bx)
+                                loss = criterion(out, by)
+                                loss.backward()
+                                optimizer.step()
+                                
+                        model.eval()
+                        correct = 0
+                        total = 0
+                        with torch.no_grad():
+                            for bx, by in test_loader:
+                                bx, by = bx.to(device, non_blocking=True), by.to(device, non_blocking=True)
+                                out = model(bx)
+                                preds = torch.argmax(out, dim=1)
+                                correct += (preds == by).sum().item()
+                                total += by.size(0)
+                else:
+                    model.train()
+                    for epoch in range(epochs):
+                        for bx, by in train_loader:
+                            optimizer.zero_grad()
+                            out = model(bx)
+                            loss = criterion(out, by)
+                            loss.backward()
+                            optimizer.step()
+                            
+                    model.eval()
+                    correct = 0
+                    total = 0
+                    with torch.no_grad():
+                        for bx, by in test_loader:
+                            out = model(bx)
+                            preds = torch.argmax(out, dim=1)
+                            correct += (preds == by).sum().item()
+                            total += by.size(0)
+                            
+                test_acc = correct / total
+                test_accuracies.append(test_acc)
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    print("CUDA Out of Memory caught in Test Vault evaluation run. Returning chance fallback (0.333).")
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    test_accuracies.append(0.3333)
+                else:
+                    raise e
+            finally:
+                # Cleanup model resources per run
+                if torch.cuda.is_available() and stream:
+                    stream.synchronize()
+                del model, optimizer
+                gc.collect()
+                
+        mean_test_acc = float(np.mean(test_accuracies))
+        std_test_acc = float(np.std(test_accuracies))
+        print(f"SRE Test Vault Audit: Config: {best_config} -> Mean Test Acc: {mean_test_acc:.4f} +/- {std_test_acc:.4f} across 5 initializations.")
+        return mean_test_acc
+    finally:
+        # Cleanup dataset variables
+        del train_loader, test_loader, train_ds, test_ds
+        gc.collect()
+

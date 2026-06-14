@@ -29,31 +29,23 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # --- API Setup ----------------------------------------------------------------
 API_KEY_DEFAULT = os.environ.get("OPENROUTER_API_KEY", "")
 
-_SIM_MODE_WARNED = False
-def _warn_simulation_mode(where: str) -> None:
-    """Emit a prominent one-time warning whenever the synthetic simulation fallback
-    activates, so keyless runs can never silently masquerade as physical experiments."""
-    global _SIM_MODE_WARNED
-    if not _SIM_MODE_WARNED:
-        log.warning("=" * 64)
-        log.warning("SIMULATION MODE ACTIVE (%s): no LLM API key detected.", where)
-        log.warning("Outputs are SYNTHETIC arithmetic stubs, NOT real LLM/PyTorch results.")
-        log.warning("Set OPENROUTER_API_KEY to run physical experiments.")
-        log.warning("=" * 64)
-        _SIM_MODE_WARNED = True
-
 async def call_llm(prompt, session=None, system_prompt="You are a precise machine learning assistant."):
     """Async HTTP client utilizing a shared aiohttp ClientSession for serving-safe, non-blocking requests"""
     gemini_key = os.environ.get("GEMINI_API_KEY")
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY") or API_KEY_DEFAULT
-    # Generic OpenAI-compatible local endpoint (e.g. Ollama/vLLM on a notebook GPU).
-    # When set, this is a *real* inference backend, so simulation must NOT engage.
-    local_url = os.environ.get("LLM_BASE_URL")
-
-    # SRE Fast Simulation Mode (only if NO real backend of any kind is configured)
-    if not gemini_key and not deepseek_key and not openrouter_key and not local_url:
-        _warn_simulation_mode("call_llm")
+    
+    # SRE Fast Simulation Mode — MUST be opted into explicitly via RAR_SIM=1.
+    # Without a key AND without the opt-in we refuse to run, so a lost Colab env
+    # var can never silently fabricate "results" (root cause of the taskB corruption).
+    if not gemini_key and not deepseek_key and not openrouter_key:
+        if os.environ.get("RAR_SIM") != "1":
+            raise RuntimeError(
+                "No API key found (GEMINI/DEEPSEEK/OPENROUTER) and RAR_SIM!=1. "
+                "Refusing to fabricate results via simulation mode. "
+                "Set a real API key to run the genuine campaign, or export RAR_SIM=1 "
+                "to explicitly acknowledge you want offline canned simulation."
+            )
         if "recursively consolidating" in prompt or "You are recursively consolidating" in prompt:
             return "The optimal parameters occupy wider dimensions (filters_2=64) and depth num_conv_layers=3 with LeakyReLU and AdamW (lr=0.01). Failed configurations consistently use SGD and high dropout (0.5)."
         else:
@@ -135,71 +127,42 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
             "temperature": 0.2
         }
     else:
-        # OpenAI-compatible path: OpenRouter by default, or a local endpoint
-        # (Ollama/vLLM) when LLM_BASE_URL is set. Same request schema for both.
-        url = local_url or "https://openrouter.ai/api/v1/chat/completions"
-        auth_key = openrouter_key or os.environ.get("LLM_API_KEY", "local")
+        url = "https://openrouter.ai/api/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {auth_key}",
+            "Authorization": f"Bearer {openrouter_key}",
             "Content-Type": "application/json"
         }
-        model_name = os.environ.get("OPENROUTER_MODEL", "nvidia/nemotron-nano-9b-v2:free")
+        model_name = os.environ.get("OPENROUTER_MODEL", "openrouter/free")
         payload = {
             "model": model_name,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
-            "temperature": 0.2,
-            # Reasoning-capable free models (e.g. nemotron-nano) spend tokens on a
-            # reasoning trace before emitting content; budget generously so the JSON
-            # answer is not truncated (finish_reason=length with null content).
-            "max_tokens": int(os.environ.get("OPENROUTER_MAX_TOKENS", "4000"))
+            "temperature": 0.2
         }
         
     actual_session = session or aiohttp.ClientSession()
-    # Explicit socket-level timeouts so a server that accepts the connection but
-    # never streams a body (common on free-tier queueing) cannot hang us forever.
-    req_timeout = aiohttp.ClientTimeout(total=120, connect=30, sock_connect=30, sock_read=90)
-
-    async def _do_request():
-        async with actual_session.post(url, headers=headers, json=payload,
-                                       timeout=req_timeout) as response:
-            status = response.status
-            if status == 200:
-                return status, await response.json()
-            return status, await response.text()
-
     try:
         for attempt in range(5):
             try:
-                # Hard ceiling independent of aiohttp's internal timer (belt and
-                # suspenders against any concurrency-related stall).
-                status, body = await asyncio.wait_for(_do_request(), timeout=130)
-                if status == 200:
-                    res_data = body
-                    if is_gemini:
-                        return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    # Reasoning models may return content=None when the token budget
-                    # is exhausted by the reasoning trace; treat as transient failure.
-                    content = res_data["choices"][0]["message"].get("content")
-                    if content:
-                        return content.strip()
-                    log.warning("LLM returned empty content (likely reasoning-token "
-                                "exhaustion); retrying with backoff.")
-                    await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
-                elif status == 429:
-                    backoff = 2.0 * (2 ** attempt) + np.random.uniform(0.1, 1.0)
-                    log.warning("Rate limited (429). Retrying after %.2fs backoff...", backoff)
-                    await asyncio.sleep(backoff)
-                else:
-                    log.error("API Error %s: %s", status, str(body)[:200])
-                    await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
-            except asyncio.TimeoutError:
-                log.warning("LLM call timed out (attempt %d/5); backing off.", attempt + 1)
-                await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
+                async with actual_session.post(url, headers=headers, json=payload, timeout=30) as response:
+                    if response.status == 200:
+                        res_data = await response.json()
+                        if is_gemini:
+                            return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        else:
+                            return res_data["choices"][0]["message"]["content"].strip()
+                    elif response.status == 429:
+                        # SRE Hardening: Exponential backoff with jitter on rate-limits (no fast exit)
+                        backoff = 2.0 * (2 ** attempt) + np.random.uniform(0.1, 1.0)
+                        print(f"Rate limited (429). Retrying after {backoff:.2f}s backoff...")
+                        await asyncio.sleep(backoff)
+                    else:
+                        print(f"API Error {response.status}: {await response.text()}")
+                        await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
             except Exception as e:
-                log.error("Connection error: %s", e)
+                print(f"Connection error: {e}")
                 await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
     finally:
         if session is None:
@@ -254,34 +217,6 @@ def is_valid_config(config):
         return False
     return True
 
-# Pre-compiled instruction-override patterns for input-boundary sanitization.
-# These guard the LLM *input* surface (free-text summaries re-injected into the
-# recursive prompt), complementing is_valid_config which guards the *output*.
-_INJECTION_PATTERNS = [
-    re.compile(r'(?i)(ignore|forget|disregard|override)\b.{0,40}\b(instruction|above|prior|previous|system|prompt)'),
-    re.compile(r'(?i)\b(system|developer)\s*prompt\b'),
-    re.compile(r'(?i)\byou\s+are\s+now\b'),
-    re.compile(r'(?i)\b(execute|run|call)\b.{0,20}\b(api|command|shell|code)\b'),
-]
-
-def sanitize_log_entry(entry: str, max_len: int = 600) -> str:
-    """Strip instruction-override patterns from free text before it re-enters the
-    LLM context. This closes the indirect prompt-injection vector where a crafted
-    trial summary could hijack the recursive consolidation prompt.
-
-    Args:
-        entry: Raw free text (e.g. an LLM-generated knowledge-map summary).
-        max_len: Hard cap on returned length to bound prompt growth.
-    Returns:
-        Sanitized, length-bounded string safe to inline into a prompt.
-    """
-    if not isinstance(entry, str):
-        return ""
-    sanitized = entry
-    for pat in _INJECTION_PATTERNS:
-        sanitized = pat.sub("[SANITIZED]", sanitized)
-    return sanitized[:max_len]
-
 def save_failed_payload(prompt, error_msg="Timeout or API Error"):
     """SRE Hardening: Persist the exact prompt that caused API timeouts or parsing failures for root-cause analysis"""
     import datetime
@@ -296,71 +231,32 @@ def save_failed_payload(prompt, error_msg="Timeout or API Error"):
         print(f"Failed to log failed payload: {e}")
 
 # --- Search Space and Constants (Ghost Parameters Purged) ---------------------
-# CYCLES and SEEDS are env-overridable for smoke-testing (e.g. RAR_CYCLES=3
-# RAR_SEEDS=42) without touching the statistically rigorous N=10 default campaign.
-CYCLES = int(os.environ.get("RAR_CYCLES", "10"))
-_DEFAULT_SEEDS = [42, 7, 13, 23, 88, 99, 101, 107, 113, 127]  # N=10 independent seeds
-_seeds_env = os.environ.get("RAR_SEEDS", "")
-SEEDS = [int(s) for s in _seeds_env.split(",") if s.strip()] if _seeds_env else _DEFAULT_SEEDS
+CYCLES = int(os.environ.get("RAR_CYCLES", "60"))  # default 60 (matches real runs); override via env
+SEEDS = [42, 7, 13, 23, 88, 99, 101, 107, 113, 127]  # N=10 independent seeds for statistically rigorous campaigns and standard deviations
 MAX_TRIAL_MEMORY = 50  # Parent state-eviction sliding window to prevent linear heap fragmentation
 
-# Expanded to the Phase-0-validated ranges: depth/width reach the high-accuracy region
-# (~91% ceiling) so search quality is visible; lr capped at 1e-2 (5e-2 was unstable).
 SEARCH_SPACE = {
-    "num_conv_layers": [2, 3, 4, 5, 7],
-    "filters_2": [32, 64, 128, 256, 512],
+    "num_conv_layers": [1, 2, 3],
+    "filters_2": [16, 32, 64],
     "activation": ["ReLU", "ELU", "LeakyReLU"],
-    "dropout_rate": [0.0, 0.05, 0.1, 0.2],
+    "dropout_rate": [0.0, 0.2, 0.5],
     "optimizer": ["AdamW", "SGD"],
-    "lr": [0.0001, 0.001, 0.01],
-    "batch_size": [32, 64, 128]
+    "lr": [0.0001, 0.001, 0.01, 0.05],
+    "batch_size": [16, 32, 64]
 }
 
 SEARCH_SPACE_PROMPT = """
-Residual MLP Hyperparameter Search Space (10-class classification):
-- num_conv_layers: [2, 3, 4, 5, 7] (number of residual MLP blocks; deeper fits the harder manifold)
-- filters_2: [32, 64, 128, 256, 512] (hidden width; larger needed for high accuracy)
+Residual MLP Hyperparameter Search Space:
+- num_conv_layers: [1, 2, 3] (maps to number of residual MLP blocks)
+- filters_2: [16, 32, 64] (maps to hidden layer dimension/width of MLP blocks)
 - activation: ['ReLU', 'ELU', 'LeakyReLU']
-- dropout_rate: [0.0, 0.05, 0.1, 0.2]
+- dropout_rate: [0.0, 0.2, 0.5]
 - optimizer: ['AdamW', 'SGD']
-- lr: [0.0001, 0.001, 0.01] (peak LR under a warmup+cosine schedule; 0.01 is typically best)
-- batch_size: [32, 64, 128]
+- lr: [0.0001, 0.001, 0.01, 0.05]
+- batch_size: [16, 32, 64]
 
-Training uses warmup + cosine annealing, 40 epochs, early stopping. Weight decay and
-label smoothing are fixed. Propose a new, untried configuration that maximizes validation
-accuracy. Good solutions reach ~85-91%; weak ones stay near 55-60%.
+Your objective is to propose a new, untried hyperparameter configuration that maximizes PyTorch Residual MLP validation accuracy on the dynamic synthetic manifold dataset.
 """
-
-# --- Context budget & verbose logging (saturation mechanism) ------------------
-# The stateless baseline truncates its accumulated log to C_MAX characters, so at long
-# horizons it genuinely forgets older trials (the context-rot mechanism the paper studies).
-# Verbose per-trial entries make the log pressure the budget realistically.
-C_MAX = int(os.environ.get("RAR_CMAX", "4000"))
-
-def format_trial_verbose(t):
-    """Verbose per-trial log entry (~300-400 chars) so accumulated history realistically
-    pressures the context window, inducing genuine saturation in the stateless baseline."""
-    c = t["config"]
-    region = "strong region" if t["acc"] >= 0.75 else ("weak region" if t["acc"] < 0.60 else "mid region")
-    return (f"- Trial: arch(blocks={c.get('num_conv_layers')}, width={c.get('filters_2')}, "
-            f"act={c.get('activation')}, dropout={c.get('dropout_rate')}), "
-            f"optim={c.get('optimizer')}, lr={c.get('lr')}, batch={c.get('batch_size')} "
-            f"-> val_acc={t['acc']:.4f}{' [REDUNDANT]' if t.get('redundant') else ''}. "
-            f"Note: evaluated on the 10-class manifold; result falls in the {region}.\n")
-
-def truncate_to_budget(header, entries, budget):
-    """Keep the most-recent entries that fit within `budget` chars (after header),
-    mimicking a hard context-window truncation. Returns (text, n_kept, n_total)."""
-    kept, used = [], len(header)
-    for e in reversed(entries):
-        if used + len(e) > budget:
-            break
-        kept.append(e); used += len(e)
-    kept.reverse()
-    text = header + "".join(kept)
-    if len(kept) < len(entries):
-        text += f"[... {len(entries) - len(kept)} older trials truncated (context window full) ...]\n"
-    return text, len(kept), len(entries)
 
 # --- SRE Write-Ahead Logging (WAL) State Machine (Isolative Filenames) ---------
 def get_wal_path(condition, seed):
@@ -549,9 +445,10 @@ def _cpu_louvain_partition(all_trials):
     try:
         if G.number_of_edges() > 0:
             communities = list(louvain_communities(G, weight='weight', seed=42))
-
+            
             # Verify modularity maximization axiom (must be positive)
-            mod_val = nx.community.modularity(G, communities, weight='weight')
+            from networkx.community.quality import modularity
+            mod_val = modularity(G, communities, weight='weight')
             if mod_val <= 0.0:
                 # Modularity gain is not positive; fallback to treating each node as a community to maintain search diversity
                 communities = [{i} for i in range(n)]
@@ -777,53 +674,17 @@ async def execute_campaign():
             "prompt_densities": [],
             "wall_clock_latencies": [],
             "net_tokens": [],
-            "generalization_gaps": [],
-            "llm_proposal_counts": [],   # per-seed: # of proposals that came from the LLM
-            "heuristic_proposal_counts": [],  # per-seed: # of heuristic fallbacks
-            "best_found_trajectories": [],    # per-seed: best-found val acc per cycle (Phase 2)
-            "best_in_context_trajectories": []  # per-seed: global-best visible in prompt? (rot)
+            "generalization_gaps": []
         }
-
-    # --- Cross-run accumulation (per-seed checkpointing) ----------------------
-    # Free-tier daily caps mean a full campaign may span several runs. We persist
-    # each completed seed to partial_results.json and skip seeds already done, so
-    # results accumulate across runs/keys/days instead of restarting from scratch.
-    PARTIAL_PATH = os.path.join(OUTPUT_DIR, "partial_results.json")
-    completed_seeds = set()
-    if os.path.exists(PARTIAL_PATH):
-        try:
-            with open(PARTIAL_PATH, "r", encoding="utf-8") as f:
-                _partial = json.load(f)
-            if _partial.get("conditions"):
-                campaign_results = _partial["conditions"] and {
-                    **campaign_results, "conditions": _partial["conditions"]}
-                # Backfill any metric keys missing from older checkpoints
-                for _cd in campaign_results["conditions"].values():
-                    for _k in ("llm_proposal_counts", "heuristic_proposal_counts",
-                               "best_found_trajectories", "best_in_context_trajectories"):
-                        _cd.setdefault(_k, [])
-            completed_seeds = set(_partial.get("completed_seeds", []))
-            log.info("Resuming from %d completed seeds: %s",
-                     len(completed_seeds), sorted(completed_seeds))
-        except Exception as e:
-            log.warning("Could not load partial_results.json (%s); starting fresh.", e)
-
-    def _save_partial():
-        with open(PARTIAL_PATH, "w", encoding="utf-8") as f:
-            json.dump({"completed_seeds": sorted(completed_seeds),
-                       "conditions": campaign_results["conditions"]}, f, indent=2)
 
     # SRE Hardening: Maintain a single ClientSession with persistent TCPConnector keep-alive pooling to prevent socket exhaustion
     connector = aiohttp.TCPConnector(limit=10, keepalive_timeout=30)
     async with aiohttp.ClientSession(connector=connector) as session:
         for seed in SEEDS:
-            if seed in completed_seeds:
-                log.info("Seed %s already complete (checkpoint); skipping.", seed)
-                continue
             print(f"\n========================================================")
             print(f"> STARTING SEED CAMPAIGN: {seed}")
             print(f"========================================================")
-
+            
             conditions_list = ["stateless_baseline", "vector_rag", "rar_compressed"]
             for cond_idx, cond in enumerate(conditions_list):
                 wal_path = get_wal_path(cond, seed)
@@ -833,11 +694,6 @@ async def execute_campaign():
                 densities = []
                 net_tokens = 0
                 start_cycle = 1
-                # Phase-2 instrumentation: per-cycle best-found accuracy, and whether the
-                # current global-best trial's entry survived into this cycle's prompt
-                # (False = the agent has "forgotten" its best result -> direct rot evidence).
-                best_found_traj = []
-                best_in_context_traj = []
                 
                 compressed_history = ""
                 raw_history_buffer = []
@@ -882,12 +738,11 @@ async def execute_campaign():
                         
                         # Build context
                         if cond == "stateless_baseline":
+                            history_str = ""
                             if trials:
-                                # Verbose log truncated to C_MAX: at long horizons the oldest
-                                # trials (incl. an early global best) fall out of context -> rot.
-                                entries = [format_trial_verbose(t) for t in trials]
-                                history_str, _kept, _total = truncate_to_budget(
-                                    "### Prior Trials Evaluated:\n", entries, C_MAX)
+                                history_str = "### Prior Trials Evaluated:\n"
+                                for t in trials:
+                                    history_str += f"- Trial: {t['config']}, Accuracy: {t['acc']:.4f}\n"
                             else:
                                 history_str = "This is the very first trial. You have no previous history.\n"
                         elif cond == "vector_rag":
@@ -900,14 +755,11 @@ async def execute_campaign():
                         else: # rar_compressed
                             history_str = ""
                             if compressed_history:
-                                # Input-boundary sanitization: the summary is LLM-generated
-                                # free text re-entering the recursive prompt — sanitize it.
-                                safe_summary = sanitize_log_entry(compressed_history)
-                                history_str += f"### Lossless Summary of Prior Knowledge Map:\n{safe_summary}\n\n"
+                                history_str += f"### Lossless Summary of Prior Knowledge Map:\n{compressed_history}\n\n"
                             if raw_history_buffer:
                                 history_str += "### Recent Trial Logs:\n"
                                 for t in raw_history_buffer:
-                                    history_str += format_trial_verbose(t)
+                                    history_str += f"- Trial: {t['config']}, Accuracy: {t['acc']:.4f}\n"
                             elif not compressed_history:
                                 history_str = "This is the very first trial. You have no previous history.\n"
                         
@@ -955,25 +807,12 @@ Your response MUST contain a single, clean JSON block in the format:
                         
                         is_redundant = any(t['config'] == config for t in trials)
                         trial_entry = {"config": config, "acc": acc, "redundant": is_redundant, "mode": mode}
-
-                        # Phase-2 instrumentation (computed BEFORE appending this trial):
-                        # was the best-so-far trial's record visible in the prompt just used?
-                        if trials:
-                            prev_best = max(trials, key=lambda t: t["acc"])
-                            best_in_context_traj.append(
-                                format_trial_verbose(prev_best) in history_str
-                                or f"{prev_best['acc']:.4f}" in history_str)
-                        else:
-                            best_in_context_traj.append(True)  # first cycle: nothing to forget
-
+                        
                         trials.append(trial_entry)
-                        best_found_traj.append(max(t["acc"] for t in trials)
-                                               if len(best_found_traj) == 0
-                                               else max(best_found_traj[-1], acc))
                         if cond == "rar_compressed":
                             raw_history_buffer.append(trial_entry)
-
-                        densities.append(len(prompt) / float(C_MAX))
+                             
+                        densities.append(len(prompt) / 4000.0)
                         print(f"  Proposed: {config} -> Val Acc: {acc:.4f} (Redundant: {is_redundant})")
                         
                         # Trigger consolidator background task
@@ -1021,53 +860,48 @@ Your response MUST contain a single, clean JSON block in the format:
                 campaign_results["conditions"][cond]["wall_clock_latencies"].append(cond_duration)
                 campaign_results["conditions"][cond]["net_tokens"].append(net_tokens)
                 campaign_results["conditions"][cond]["generalization_gaps"].append(abs(max(val_accs) - test_acc))
-                campaign_results["conditions"][cond]["llm_proposal_counts"].append(
-                    sum(1 for t in trials if t.get("mode") == "LLM"))
-                campaign_results["conditions"][cond]["heuristic_proposal_counts"].append(
-                    sum(1 for t in trials if t.get("mode") == "heuristic"))
-                campaign_results["conditions"][cond]["best_found_trajectories"].append(
-                    [round(float(a), 4) for a in best_found_traj])
-                campaign_results["conditions"][cond]["best_in_context_trajectories"].append(
-                    [bool(b) for b in best_in_context_traj])
                 
                 # Clear isolated WAL logs on success
                 clear_wal(wal_path)
-
-            # Seed fully complete (all 3 conditions) — checkpoint to disk so the
-            # campaign can resume here on the next run (free-tier daily cap).
-            completed_seeds.add(seed)
-            _save_partial()
-            log.info("Seed %s complete and checkpointed (%d seeds done so far).",
-                     seed, len(completed_seeds))
-
+            
     # --- STATISTICAL AUDIT & RESULTS SERIALIZATION ----------------------------
-    try:
-        w_stat, p_val = wilcoxon(
-            campaign_results["conditions"]["rar_compressed"]["test_accuracies"],
-            campaign_results["conditions"]["stateless_baseline"]["test_accuracies"],
-            alternative="greater"
-        )
-        p_val_str = f"{p_val:.4f}"
-    except Exception as e:
-        # Do NOT emit a "n.s."-style string that reads like a real statistical
-        # outcome; mark it explicitly as an error and log the cause (BL-11.2).
-        log.error("Wilcoxon test failed: %s", e, exc_info=True)
-        p_val_str = "STAT_ERROR"
+    # Wilcoxon needs >=2 paired seeds to be meaningful. For single-seed runs
+    # (per-seed isolated execution) we skip it here; merge_seeds.py computes the
+    # real p-value once all per-seed files are stitched together.
+    if len(SEEDS) >= 2:
+        try:
+            w_stat, p_val = wilcoxon(
+                campaign_results["conditions"]["rar_compressed"]["test_accuracies"],
+                campaign_results["conditions"]["stateless_baseline"]["test_accuracies"],
+                alternative="greater"
+            )
+            p_val_str = f"{p_val:.4f}"
+        except Exception:
+            p_val_str = "n.s. (insufficient variance)"
+    else:
+        p_val_str = "n/a (single-seed run; merge before testing)"
 
-    all_seeds = sorted(completed_seeds) if completed_seeds else SEEDS
     results_to_save = {
         "meta": "Upgrade campaign with PyTorch Residual MLP hyperparameter search on dynamic synthetic manifold",
-        "SEEDS": all_seeds,
+        "SEEDS": SEEDS,
         "CYCLES": CYCLES,
         "wilcoxon_p_value_RAR_vs_Baseline": p_val_str,
         "data": campaign_results
     }
-    
-    with open(os.path.join(OUTPUT_DIR, "pilot_results.json"), "w") as f:
+
+    # Per-seed runs write to pilot_seed_<seed>.json (set via RAR_OUTPUT_FILE);
+    # full runs default to pilot_results.json.
+    output_file = os.environ.get("RAR_OUTPUT_FILE", "pilot_results.json")
+    with open(os.path.join(OUTPUT_DIR, output_file), "w") as f:
         json.dump(results_to_save, f, indent=2)
-        
-    print(f"\nVerification Success: Upgraded campaign logs written to pilot_results.json")
-    
+
+    print(f"\nVerification Success: campaign logs written to {output_file}")
+
+    # Skip aggregate plotting on single-seed runs (boxplots need the full set).
+    if len(SEEDS) < 2:
+        print("Single-seed run complete. Run merge_seeds.py after all seeds finish.")
+        return
+
     # --- HIGH-FIDELITY PLOTTING -----------------------------------------------
     plt.rcParams['mathtext.fontset'] = 'dejavuserif'
     plt.rcParams['font.family'] = 'serif'
