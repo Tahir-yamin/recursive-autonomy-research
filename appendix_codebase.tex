@@ -9,37 +9,39 @@ The complete raw numeric output from the pilot campaign is reproduced below for 
 \begin{lstlisting}[language={},basicstyle=\ttfamily\tiny,
     caption={Raw pilot\_results.json output},label=lst:pilot_json]
 {
-  "meta": {"n_seeds": 10, "n_cycles": 10, "epochs": 15},
+  "meta": {"n_seeds": 10, "n_cycles": 60, "model": "openai/gpt-oss-20b:free"},
+  "seeds": [7, 13, 23, 42, 88, 99, 101, 107, 113, 127],
   "data": {
     "stateless_baseline": {
-      "test_accuracies": [0.4319, 0.4318, 0.4320, 0.4319, 0.4318, 0.4319,
-                          0.4320, 0.4319, 0.4319, 0.4319],
-      "val_accuracies":  [0.4494, 0.4497, 0.4496, 0.4495, 0.4494, 0.4496,
-                          0.4496, 0.4495, 0.4496, 0.4497],
-      "mean_prompt_density": 0.424, "net_tokens": 18974,
-      "mean_loop_latency_s": 2.10
+      "test_accuracies": [0.3974, 0.4134, 0.4200, 0.3940, 0.4188, 0.3886,
+                          0.4016, 0.3950, 0.3956, 0.3876],
+      "val_accuracies":  [0.430, 0.434, 0.411, 0.416, 0.424, 0.432,
+                          0.423, 0.435, 0.423, 0.418],
+      "mean_prompt_density": 1.409, "net_tokens": 350249,
+      "mean_redundancy": 0.4, "mean_loop_latency_s": 612.1
     },
     "vector_rag": {
-      "test_accuracies": [0.4319, 0.4318, 0.4320, 0.4319, 0.4318, 0.4319,
-                          0.4320, 0.4319, 0.4319, 0.4319],
-      "val_accuracies":  [0.4494, 0.4497, 0.4496, 0.4495, 0.4494, 0.4496,
-                          0.4496, 0.4495, 0.4496, 0.4497],
-      "mean_prompt_density": 0.451, "net_tokens": 20039,
-      "mean_loop_latency_s": 1.38
+      "test_accuracies": [0.4006, 0.4232, 0.4026, 0.3826, 0.4280, 0.4066,
+                          0.4158, 0.3872, 0.3882, 0.3838],
+      "val_accuracies":  [0.432, 0.428, 0.403, 0.425, 0.409, 0.422,
+                          0.414, 0.412, 0.407, 0.412],
+      "mean_prompt_density": 0.660, "net_tokens": 170502,
+      "mean_redundancy": 33.2, "mean_loop_latency_s": 389.2
     },
     "rar_compressed": {
-      "test_accuracies": [0.4417, 0.4418, 0.4419, 0.4418, 0.4417, 0.4418,
-                          0.4419, 0.4418, 0.4418, 0.4418],
-      "val_accuracies":  [0.4580, 0.4582, 0.4581, 0.4581, 0.4580, 0.4582,
-                          0.4582, 0.4581, 0.4581, 0.4581],
-      "mean_prompt_density": 0.315, "net_tokens": 14605,
-      "mean_loop_latency_s": 1.53
+      "test_accuracies": [0.3856, 0.4070, 0.4204, 0.3960, 0.4308, 0.4042,
+                          0.3954, 0.4292, 0.3844, 0.3968],
+      "val_accuracies":  [0.447, 0.433, 0.422, 0.426, 0.417, 0.424,
+                          0.437, 0.424, 0.417, 0.428],
+      "mean_prompt_density": 0.387, "net_tokens": 105055,
+      "mean_redundancy": 7.8, "mean_loop_latency_s": 433.4
     }
   },
   "statistics": {
-    "wilcoxon_p_rar_vs_baseline": 0.001,
-    "prompt_density_reduction_pct": -25.7,
-    "net_token_savings_pct": -23.0
+    "wilcoxon_p_rar_vs_baseline": 0.2461,
+    "wilcoxon_significant": false,
+    "prompt_density_reduction_pct": -72.5,
+    "net_token_savings_pct": -70.0
   }
 }
 \end{lstlisting}
@@ -467,7 +469,7 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
             "Authorization": f"Bearer {openrouter_key}",
             "Content-Type": "application/json"
         }
-        model_name = os.environ.get("OPENROUTER_MODEL", "nvidia/nemotron-nano-9b-v2:free")
+        model_name = os.environ.get("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
         payload = {
             "model": model_name,
             "messages": [
@@ -1296,8 +1298,8 @@ The empirical results across the $N=10$ randomized physical seeds are fully repr
     113,
     127
   ],
-  "CYCLES": 10,
-  "wilcoxon_p_value_RAR_vs_Baseline": "0.0010",
+  "CYCLES": 60,
+  "wilcoxon_p_value_RAR_vs_Baseline": "0.2461",
   "data": {
     "dataset": "Dynamic Synthetic Manifold (PyTorch Residual MLP)"
   }
@@ -1321,9 +1323,9 @@ To provide absolute empirical transparency and respect the peer review process, 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Cleaned custom vertical spacing and rules in \texttt{main.tex}. Replaced all invalid \texttt{\textbackslash\{\}mathbf} occurrences with standard \texttt{\textbackslash\{\}textbf} in Table 1 to ensure warning-free compilation.
           \item Replaced the toy classification setup with a dynamic, non-linear Gaussian quantiles classification manifold.
-          \item Scaled the evaluation campaign to $N=10$ random seeds, yielding a valid and highly significant Wilcoxon signed-rank test $p$-value of \textbf{$0.0010$} ($p < 0.05$).
+          \item Scaled the evaluation campaign to $N=10$ random seeds over 60-cycle horizons. The Wilcoxon signed-rank test returns $p = 0.2461$: we \emph{withdraw} any accuracy-superiority claim and reframe the contribution as efficiency at accuracy parity (70.0\% net token reduction, 72.5\% density reduction).
           \item Updated Table 1 and paragraphs to show that Louvain partitioning groups hyperparameters into distinct functional regions, preventing localized optimization stagnation.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{ACM TODS Reviewer (REJECTED (Resolvable)):}
@@ -1334,7 +1336,7 @@ To provide absolute empirical transparency and respect the peer review process, 
           \item Formalized the Knowledge Map as a relational multigraph schema $G=(V, E, \Phi)$ in Section 3.2 of the manuscript.
           \item Clarified that NetworkX is used for local memory consolidation within HPO loops, which is highly efficient. Introduced a sliding-window queue (\texttt{collections.deque(maxlen=MAX\textbackslash\{\}\_TRIAL\textbackslash\{\}\_MEMORY)}) to prevent quadratic memory scaling.
           \item Offloaded Louvain graph partition processing and file persistence to background threads via \texttt{asyncio.to\textbackslash\{\}\_thread()}, resolving event-loop starvation.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{NVIDIA Architect (REJECTED (Resolvable)):}
@@ -1344,18 +1346,18 @@ To provide absolute empirical transparency and respect the peer review process, 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Updated the codebase and text to represent explicit GPU execution boundaries, utilizing torch device mapping (\texttt{.to(device)}) and CUDA stream synchronizations.
           \item Stripped out \texttt{ProcessPoolExecutor} and replaced it with lightweight in-process thread execution (\texttt{asyncio.to\textbackslash\{\}\_thread()}), bypassing process spawning overheads.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{Cohere Safety Lead (REJECTED (Resolvable)):}
-        \emph{Critique:} The manuscript fails to include a Safety and Ethics section, which is mandatory for autonomous research agents that interface with external APIs. Immediate rejection due to \textbf{credential leakage} (hardcoded API key \texttt{sk-or-v1-[REDACTED]} at Line 20 of \texttt{run\textbackslash\{\}\_pilot\textbackslash\{\}\_experiment.py}). The RLM-based context compression summarizer takes raw trial logs (which may contain un-gated output from training runs) and passes them directly to \texttt{call\textbackslash\{\}\_llm} inside a recursive prompt. This creates a classic indirect prompt injection vector: a malicious training log could hijack the system prompt and execute arbitrary API calls. SOTA context compression methods enforce strict boundary sanitization and token-level filtering. RAR blindly aggregates unstructured text, posing a severe compliance risk.
+        \emph{Critique:} The manuscript fails to include a Safety and Ethics section, which is mandatory for autonomous research agents that interface with external APIs. Immediate rejection due to \textbf{credential leakage} (hardcoded API key \texttt{sk-or-v1-d881...} at Line 20 of \texttt{run\textbackslash\{\}\_pilot\textbackslash\{\}\_experiment.py}). The RLM-based context compression summarizer takes raw trial logs (which may contain un-gated output from training runs) and passes them directly to \texttt{call\textbackslash\{\}\_llm} inside a recursive prompt. This creates a classic indirect prompt injection vector: a malicious training log could hijack the system prompt and execute arbitrary API calls. SOTA context compression methods enforce strict boundary sanitization and token-level filtering. RAR blindly aggregates unstructured text, posing a severe compliance risk.
         
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Added Section 7 (\emph{Safety, Ethical Considerations, and Alignment}) to detail sandbox boundaries and risk mitigations.
           \item Completely purged the hardcoded API key from \texttt{run\textbackslash\{\}\_pilot\textbackslash\{\}\_experiment.py}, replacing it with environment variable lookups.
           \item Implemented a strict syntactic JSON verification filter to validate configuration proposals, blocking injection attempts.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{Scale AI Lead (REJECTED (Resolvable)):}
@@ -1364,7 +1366,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Streamlined Figure captions and text descriptions. Swapped the dataset with a dynamically warped Gaussian manifold.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{MSR Research Engineer (REJECTED (Resolvable)):}
@@ -1373,7 +1375,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Replaced absolute references with relative path resolution. Deployed dynamic pathing using relative directory references to prevent sandboxing violations. WAL renaming perm-error fixed with backoff retry. Cleaned up duplicate LaTeX packages.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{JMLR Editor (REJECTED (Resolvable)):}
@@ -1381,8 +1383,8 @@ To provide absolute empirical transparency and respect the peer review process, 
         
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
-          \item Formalized Definitions and Table 1 metrics to align exactly with \texttt{pilot\textbackslash\{\}\_results.json} (Val: 45.81\%, Test: 44.17\%, net token savings of -23.0\%, $p$-value: 0.0010).
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Formalized Definitions and aligned Table 1 metrics exactly with the real \texttt{pilot\textbackslash\{\}\_results.json} ($N{=}10$, 60 cycles): RAR Val 42.75\%, Test 40.50\% vs Baseline Test 40.12\% (Wilcoxon $p = 0.2461$, not significant), net token savings of -70.0\%.
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{Hugging Face Production Lead (REJECTED (Resolvable)):}
@@ -1391,7 +1393,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Purged AI slop and buzzwords from abstract and conclusion. Added a detailed section on HPO computational budgets and token efficiency tradeoffs.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{ETH Zurich HPC Chair (REJECTED (Resolvable)):}
@@ -1400,7 +1402,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Standardized PyTorch thread affinity (\texttt{torch.set\textbackslash\{\}\_num\textbackslash\{\}\_threads(1)}) and GPU stream synchronization before cache flushes.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{SANS Auditor (REJECTED (Resolvable)):}
@@ -1409,7 +1411,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Added security and API safety details in Section 7. Secured WAL files with unique process IDs and strict file system permissions.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{JetBrains Lead (REJECTED (Resolvable)):}
@@ -1418,7 +1420,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Cleaned LaTeX listings formatting. Added python type hints, docstrings, and structured logging throughout the codebase.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{Oxford Complexity Prof (REJECTED (Resolvable)):}
@@ -1427,7 +1429,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Demonstrated that Louvain maximizes modularity to group hyperparameters into distinct covariance blocks, bypassing chronological local-optima constraints.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{AWS Architect (REJECTED (Resolvable)):}
@@ -1436,7 +1438,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Decoupled local file lock dependencies and implemented SRE WAL logs with retry backoffs.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{LangChain Founding Engineer (REJECTED (Resolvable)):}
@@ -1445,7 +1447,7 @@ To provide absolute empirical transparency and respect the peer review process, 
         \emph{Resolution:} 
         \begin{itemize}[leftmargin=1em,itemsep=1pt]
           \item Refactored orchestrator to support a modular configuration mapping vectorizer and validation schema.
-          \item Verified end-to-end with pilot results ($p=0.0010$, 10 seeds).
+          \item Verified end-to-end with the full $N{=}10$, 60-cycle pilot campaign ($p=0.2461$, not significant for accuracy; the validated contribution is efficiency---70.0\% fewer tokens at accuracy parity).
         \end{itemize}
 
   \item \textbf{Neo4j Graph Scientist (REJECTED (Resolvable)):}
