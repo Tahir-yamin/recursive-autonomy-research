@@ -36,7 +36,7 @@ def generate_synthetic_manifold(n_samples=4000, seed=42):
         random_state=seed
     )
     
-    # Apply complex multi-dimensional non-linear polynomial and trigonometric warp (Swiss Roll-like curvature)
+    # Apply a fixed multi-dimensional non-linear polynomial and trigonometric warp (deterministic curvature)
     X = X + 0.2 * (X ** 2) - 0.1 * (X ** 3) + 0.5 * np.sin(X * np.pi)
     X = X.astype(np.float32)
     y = y.astype(np.int64)
