@@ -28,17 +28,27 @@ METRICS = [
 
 
 def seed_of(path):
-    m = re.search(r"pilot_seed_(\d+)\.json$", os.path.basename(path))
+    m = re.search(r"pilot_seed_(\d+)(?:_[A-Za-z0-9]+)?\.json$", os.path.basename(path))
     return int(m.group(1)) if m else None
 
 
 def main():
+    # Optional dataset tag: `python merge_seeds.py digits` merges
+    # pilot_seed_<seed>_digits.json -> pilot_results_digits.json.
+    import sys
+    tag = sys.argv[1] if len(sys.argv) > 1 else None
+    if tag:
+        pattern = os.path.join(OUTPUT_DIR, f"pilot_seed_*_{tag}.json")
+        out_name = f"pilot_results_{tag}.json"
+    else:
+        pattern = os.path.join(OUTPUT_DIR, "pilot_seed_*.json")
+        out_name = "pilot_results.json"
     files = sorted(
-        glob.glob(os.path.join(OUTPUT_DIR, "pilot_seed_*.json")),
+        [f for f in glob.glob(pattern) if seed_of(f) is not None],
         key=lambda p: seed_of(p),
     )
     if not files:
-        print("No pilot_seed_*.json files found. Run run_single_seed.py first.")
+        print(f"No files matching {os.path.basename(pattern)} found. Run the seed loop first.")
         return
 
     seeds_in_order = []
@@ -95,22 +105,23 @@ def main():
     print(f"Wilcoxon RAR>Baseline p = {p_val_str}")
 
     results_to_save = {
-        "meta": "Merged per-seed campaign (PyTorch Residual MLP on dynamic synthetic manifold)",
+        "meta": f"Merged per-seed campaign (PyTorch Residual MLP); dataset tag={tag or 'manifold'}",
+        "dataset_tag": tag or "manifold",
         "SEEDS": seeds_in_order,
         "CYCLES": cycles,
         "wilcoxon_p_value_RAR_vs_Baseline": p_val_str,
         "data": {
-            "dataset": "Dynamic Synthetic Manifold (PyTorch Residual MLP)",
+            "dataset": tag or "manifold",
             "SEEDS": seeds_in_order,
             "CYCLES": cycles,
             "conditions": merged,
         },
     }
 
-    out = os.path.join(OUTPUT_DIR, "pilot_results.json")
+    out = os.path.join(OUTPUT_DIR, out_name)
     with open(out, "w") as f:
         json.dump(results_to_save, f, indent=2)
-    print(f"\nWrote merged results -> pilot_results.json")
+    print(f"\nWrote merged results -> {out_name}")
 
 
 if __name__ == "__main__":
