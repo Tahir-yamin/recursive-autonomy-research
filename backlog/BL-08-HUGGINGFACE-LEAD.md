@@ -20,9 +20,10 @@ tradeoffs." Grep of main.tex finds no such section or table.
 - Conclusion: at what scale (N_cycles, N_params) does LLM orchestration
   become cost-competitive vs. Optuna/random search?
 
-Live pricing reference (June 2026):
-- nemotron-nano-9b-v2:free = $0.00/M tokens (free tier)
-- nemotron-nano-9b-v2 paid = $0.04/M input, $0.16/M output
+Live pricing reference (June 2026) — NOTE the authoritative campaign now uses
+`openai/gpt-oss-20b:free` (free tier, $0.00/M, the real run was at zero direct
+cost); confirm current paid-tier rates for gpt-oss-20b when computing the cost
+ratio. (Legacy: nemotron-nano-9b-v2 paid was $0.04/M input, $0.16/M output.)
 
 **Acceptance criteria:**
 - [ ] A table or paragraph with actual computed cost numbers exists
@@ -49,7 +50,7 @@ no measurable benefit at tested scale.
 "The LLM orchestration overhead is justified when the search space
 has non-trivial covariance structure [cite multi-fidelity HPO lit]
 and when N_cycles > threshold_T. For the present-scale validation
-(10 cycles, 7 dimensions), we acknowledge the ratio is suboptimal
+(60 cycles, 9 dimensions), we acknowledge the ratio is suboptimal
 and position this paper as a proof-of-concept for the architectural
 pattern, validated at the smallest practical scale."
 Honest framing avoids the reviewer complaint while keeping the paper.

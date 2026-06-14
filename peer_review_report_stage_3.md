@@ -10,7 +10,7 @@ This document collects the unvarnished reports from all 15 senior peer reviewers
 *   **Resolution:**
     *   Cleaned custom vertical spacing and rules in `main.tex`. Replaced all invalid `\mathbf` occurrences with standard `\textbf` in Table 1 to ensure warning-free compilation.
     *   Replaced the toy classification setup with a dynamic, non-linear Gaussian quantiles classification manifold.
-    *   Scaled the evaluation campaign to $N=10$ random seeds, yielding a valid and highly significant Wilcoxon signed-rank test $p$-value of **$0.0010$** ($p < 0.05$).
+    *   Scaled the evaluation campaign to $N=10$ random seeds over 60-cycle horizons. The Wilcoxon signed-rank test returns **$p = 0.2461$ (not significant)** — the reviewer's concern was correct. We withdraw the accuracy-superiority claim and reframe the contribution as efficiency at accuracy parity (70.0% net token reduction, 72.5% density reduction).
     *   Updated Table 1 and paragraphs to show that Louvain partitioning groups hyperparameters into distinct functional regions, preventing localized optimization stagnation.
 
 ---
@@ -64,7 +64,7 @@ This document collects the unvarnished reports from all 15 senior peer reviewers
 *   **Verdict:** REJECTED (Resolvable)
 *   **Critique:** The paper's mathematical definitions are sloppy. Definition 1 (Context Rot Threshold) uses arbitrary threshold parameters $\dlow$ and $\dhigh$ without establishing their physical existence or distribution properties. The paper claims "superior test accuracy over stateless baselines" (Abstract) and "statistically significant improvement". However, the actual logs in `pilot_results.json` show that the Wilcoxon signed-rank test is conducted on only $N=3$ samples, and the resulting $p$-value is **0.25**. The reported accuracies in Table 1 are also completely different from the logs. Zhou et al. (2026) run robust statistical testing over multiple seeds and datasets with bootstrap-resampled confidence intervals and exact $p$-values ($p < 0.01$). RAR's claims of significance are mathematically fraudulent.
 *   **Resolution:**
-    *   Formalized Definitions and Table 1 metrics to align exactly with `pilot_results.json` (Val: 45.81%, Test: 44.17%, net token savings of -23.0%, $p$-value: 0.0010).
+    *   Formalized Definitions and aligned Table 1 metrics exactly with the real `pilot_results.json` ($N=10$, 60 cycles): RAR Val 42.75%, Test 40.50% vs Baseline Test 40.12% (Wilcoxon $p = 0.2461$, not significant), net token savings of -70.0%. The reviewer's charge that the earlier significance claim was unsupported was correct; the manuscript now reports parity and an efficiency contribution only.
 
 ---
 

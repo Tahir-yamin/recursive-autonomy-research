@@ -20,10 +20,10 @@ limit** and PyTorch training runs on a real **T4 GPU**.
 ## Notes
 - **Timing:** ≈ 2–4 h (the orchestrator is a reasoning model). To gauge timing
   first, edit cell 6 to uncomment the 2-seed line, run it, then run the full N=10.
-- **Model fidelity:** the notebook pulls `nemotron-nano-9b-v2` (the paper's model)
-  as a community GGUF. If that arch fails to load on the installed Ollama build, it
-  falls back to `gemma2:9b` and prints which model was used — tell me which one so
-  the paper's model name stays truthful.
+- **Model fidelity:** NOTE — the authoritative $N=10$, 60-cycle campaign in the
+  paper was run on `openai/gpt-oss-20b:free` via OpenRouter, **not** nemotron. This
+  Kaggle/Ollama path is a legacy offline variant; if you use it, record which model
+  actually ran so the reported model name stays truthful.
 - **Resuming:** each completed seed is checkpointed to `partial_results.json`; in an
   interactive session, re-running cell 6 resumes from the last completed seed.
 - **Output verification:** the final cell prints per-condition test accuracy and the

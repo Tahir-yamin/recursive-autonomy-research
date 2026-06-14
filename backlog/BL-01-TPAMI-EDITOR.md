@@ -1,7 +1,7 @@
 # BL-01 — IEEE TPAMI Editor Critiques
 
 **Priority:** 🔴 P0
-**Status:** OPEN
+**Status:** Issue 1.3 RESOLVED (2026-06-14, real p=0.2461); LaTeX/benchmark items remain open
 **Audit date:** 2026-06-07
 **Grade given:** F | Verdict: Reject
 
@@ -45,16 +45,20 @@ table body cells.
 simulation design), T=0 and p = 1/1024 = 0.000977. This is the
 minimum achievable p for N=10 — it is not an empirical discovery.
 
-**Fix:** This is resolved by BL-SIM (running real experiments).
-Once real data exists, re-run `scipy.stats.wilcoxon` on actual
-per-seed deltas. If some differences are negative, p will be larger
-and more meaningful. Do NOT report p=0.0010 if derived from a
-simulation where all diffs are guaranteed positive.
+**Fix:** Resolved by BL-SIM (real experiments now run). The real
+$N=10$, 60-cycle campaign (`openai/gpt-oss-20b:free`) was re-run through
+`scipy.stats.wilcoxon` on actual per-seed deltas.
+
+**✅ RESOLVED (2026-06-14):** The fraud-derived p=0.0010 did **not** survive
+real data. Real one-sided Wilcoxon RAR>baseline gives **p = 0.2461 (not
+significant)**. The paper now reports accuracy parity and an efficiency
+contribution (70.0% token reduction, 72.5% density reduction) instead of any
+significance claim.
 
 **Acceptance criteria:**
-- [ ] p-value computed from real experiment data
-- [ ] If p=0.0010 survives real data, show the actual T statistic
-      and N in the table caption
+- [x] p-value computed from real experiment data (p = 0.2461)
+- [x] Accuracy-superiority claim withdrawn; efficiency framing adopted across
+      manuscript, Table 1 caption, and abstract
 
 ---
 
