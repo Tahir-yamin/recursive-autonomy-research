@@ -40,6 +40,9 @@
 \definecolor{rowhead}{RGB}{214,228,240}
 \definecolor{codeblue}{RGB}{0,64,128}
 \definecolor{alertred}{RGB}{180,30,30}
+\definecolor{rartint}{RGB}{222,240,236}
+\definecolor{kmtint}{RGB}{235,228,246}
+\definecolor{ratint}{RGB}{250,238,222}
 
 % --- Section formatting --------------------------------------------------------
 \titleformat{\section}{\large\bfseries\color{headblue}}{\thesection}{1em}{}[\titlerule]
@@ -248,8 +251,25 @@ For $\varepsilon = 0.80$ and calibration $(\dlow{=}0.50, \dhigh{=}0.90)$, $\tau(
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=\linewidth]{fig1_architecture.png}
-  \caption{\textbf{RAR system architecture.} Three operational layers interact over the raw execution context $C_t$. Context density $\delta_t$ is monitored continuously; the Context Manager activates when $\delta_t \geq \alpha$ ($\alpha{=}0.50$). The Ratchet Store enforces monotone improvement. The Knowledge Map updates incrementally at each compression event, providing community summaries $K_t$ to the Iteration Engine. Compression ratio $r{=}0.28$; threshold parameters $\delta_{\mathrm{low}}{=}0.50$, $\delta_{\mathrm{high}}{=}0.90$.}
+  \begin{tikzpicture}[>=latex, font=\small,
+      layer/.style={draw, rounded corners=3pt, line width=0.4pt, align=center,
+                    minimum width=3.4cm, minimum height=1.15cm},
+      lbl/.style={font=\footnotesize, color=black!55, align=center},
+      flow/.style={->, line width=0.5pt}]
+    \node[layer, fill=rowgray] (engine) at (0,0) {\textbf{Iteration Engine}\\[1pt]\footnotesize propose $\cdot$ train $\cdot$ evaluate};
+    \node[layer, fill=ratint]  (rs)     at (5.4,0) {\textbf{Ratchet Store}\\[1pt]\footnotesize keep iff $f$ improves};
+    \node[layer, fill=rartint] (cm)     at (-2.7,-3) {\textbf{Context Manager}\\[1pt]\footnotesize RLM compression};
+    \node[layer, fill=kmtint]  (km)     at (2.7,-3) {\textbf{Knowledge Map}\\[1pt]\footnotesize GraphRAG memory};
+    \node[lbl] (ct) at (-5.0,0) {raw context\\$C_t$};
+
+    \draw[flow] (ct) -- (engine);
+    \draw[flow] (engine.south west) to[bend right=12] node[lbl, left, pos=0.55]{write $C_t$} (cm.north);
+    \draw[flow] (cm.north east) to[bend right=12] node[lbl, right, pos=0.45]{compressed $C'_t$} (engine.south);
+    \draw[flow] (cm) -- node[lbl, below]{update} (km);
+    \draw[flow] (km.north) to[bend right=12] node[lbl, right, pos=0.5]{summaries $K_t$} (engine.south east);
+    \draw[flow, <->] (engine) -- node[lbl, above]{$\theta_{\mathrm{best}}$} (rs);
+  \end{tikzpicture}
+  \caption{\textbf{RAR system architecture.} Three operational layers interact over the raw execution context $C_t$. Context density $\delta_t$ is monitored continuously; the Context Manager activates when $\delta_t \geq \alpha$ ($\alpha{=}0.50$), emitting a compressed $C'_t$ and updating the Knowledge Map. The Ratchet Store enforces monotone improvement. The Knowledge Map updates incrementally at each compression event, providing community summaries $K_t$ to the Iteration Engine. Threshold parameters $\delta_{\mathrm{low}}{=}0.50$, $\delta_{\mathrm{high}}{=}0.90$.}
   \label{fig:architecture}
 \end{figure}
 
@@ -370,22 +390,32 @@ We physically evaluate the agent loops on the dynamic synthetic classification m
 \caption{\textbf{Physical PyTorch Residual MLP (\texttt{DynamicMLP}) Tuning Results} ($N{=}10$ seeds, 60 cycles). Mean $\pm$ sample standard deviation across independent runs. Prompt density $\delta$ measures context length ratio relative to $\Cmax$. Net tokens are reported as total tokens consumed over the campaign. The Wilcoxon signed-rank test for RAR test accuracy exceeding the baseline is \emph{not} significant ($p = 0.2461$, $N=10$): the conditions are at accuracy parity, and RAR's contribution is efficiency, not accuracy.}
 \label{tab:empirical_results}
 \small
-\begin{tabular}{L{5.4cm}C{2.8cm}C{2.8cm}C{2.8cm}}
+\begin{tabular}{L{5.2cm}C{2.7cm}C{2.7cm}>{\columncolor{rartint}}C{2.9cm}}
 \toprule
-\rh \textbf{Metric} & \textbf{Stateless Baseline} & \textbf{Vector RAG} & \textbf{RAR Compressed (Ours)} \\
+\textbf{Metric} & \textbf{Stateless baseline} & \textbf{Vector RAG} & \textbf{RAR compressed (ours)} \\
 \midrule
-\ra Mean Val. Accuracy (\%)        & $42.46 \pm 0.81$            & $41.64 \pm 0.97$    & $42.75 \pm 0.93$ \\
-    Mean Test Accuracy (\%)       & $40.12 \pm 1.20$            & $40.19 \pm 1.65$    & $40.50 \pm 1.68$ \\
-\ra Mean Prompt Density ($\delta$) & $1.409 \pm 0.001$           & $0.660 \pm 0.002$   & $0.387 \pm 0.004$ \\
-    Prompt Density Reduction (\%) & Reference                   & $-53.2\%$          & $\boldsymbol{-72.5\%}$ \\
-\ra Net Tokens                     & $350{,}249 \pm 185$        & $170{,}502 \pm 369$ & $\boldsymbol{105{,}055 \pm 944}$ \\
-    Net Token Savings (\%)        & Reference                   & $-51.3\%$          & $\boldsymbol{-70.0\%}$ \\
-\ra Mean Late-Cycle Redundancy     & $0.4 \pm 0.7$              & $33.2 \pm 3.3$      & $\boldsymbol{7.8 \pm 4.3}$ \\
-\ra Mean Loop Latency (s)          & $612.1 \pm 73.3$           & $389.2 \pm 43.1$    & $433.4 \pm 45.7$ \\
-    SRE WAL Task Recoverability   & $0.0\%$ (No WAL)            & $100\%$             & $\boldsymbol{100\%}$ \\
+Mean val. accuracy (\%)        & $42.46 \pm 0.81$            & $41.64 \pm 0.97$    & $42.75 \pm 0.93$ \\
+Mean test accuracy (\%)        & $40.12 \pm 1.20$            & $40.19 \pm 1.65$    & $40.50 \pm 1.68$ \\
+\addlinespace[2pt]
+Mean prompt density ($\delta$) & $1.409 \pm 0.001$           & $0.660 \pm 0.002$   & $0.387 \pm 0.004$ \\
+\quad reduction vs baseline    & ---                         & $-53.2\%$          & $\mathbf{-72.5\%}$ \\
+\addlinespace[2pt]
+Net tokens                     & $350{,}249$                 & $170{,}502$         & $\mathbf{105{,}055}$ \\
+\quad reduction vs baseline    & ---                         & $-51.3\%$          & $\mathbf{-70.0\%}$ \\
+\addlinespace[2pt]
+Mean late-cycle redundancy     & $0.4 \pm 0.7$              & $33.2 \pm 3.3$      & $7.8 \pm 4.3$ \\
+Mean loop latency (s)          & $612.1 \pm 73.3$           & $389.2 \pm 43.1$    & $\mathbf{433.4 \pm 45.7}$ \\
+SRE WAL recoverability         & $0.0\%$                     & $100\%$             & $\mathbf{100\%}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\linewidth]{fig9_reductions.png}
+  \caption{\textbf{What RAR cuts at equal accuracy.} Relative to the Stateless Baseline, RAR reduces net token cost by 70.0\%, context density by 72.5\%, and per-seed wall-clock latency by 29.2\%---all while holding test accuracy at statistical parity ($p = 0.2461$).}
+  \label{fig:reductions}
+\end{figure}
 
 During the Stateless Baseline campaigns, the raw execution logs grew linearly, and context density $\delta$ reached $1.409$ over the 60-cycle horizon---far above the compression trigger and well beyond the high-pressure regime. With no persistent memory to anchor its search, the baseline agent sampled the configuration space broadly (mean late-cycle redundancy of only $0.4$) but could not consolidate prior insights into directed improvement, plateauing at a Test Accuracy of $40.12 \pm 1.20\%$.
 
@@ -460,7 +490,25 @@ Fraction of improvements discovered at scale $S_1$ that produce statistically si
 \section{Discussion}
 
 \subsection{The Primacy of Compression over Knowledge Structure}
-The most consequential finding is that context compression alone accounts for essentially all observed CRS improvement. For practitioners, this implies a clear staged deployment: implement the Context Manager and Ratchet Store first (RAR--NoKM); add the Knowledge Map only when the search space and campaign duration meet the conditions in \cref{sec:ablation}. This recommendation avoids premature complexity while capturing the primary benefit.
+The most consequential finding is that context compression alone accounts for essentially all observed efficiency gains at no accuracy cost. For practitioners, this implies a clear staged deployment: implement the Context Manager and Ratchet Store first (RAR--NoKM); add the Knowledge Map only when the search space and campaign duration meet the conditions in \cref{sec:ablation}. This recommendation avoids premature complexity while capturing the primary benefit.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}[t]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{fig7_radar.png}
+    \caption{Normalized multi-metric profile (1.0 = best per axis).}
+    \label{fig:radar}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{fig8_latency.png}
+    \caption{Mean per-seed wall-clock latency.}
+    \label{fig:latency}
+  \end{subfigure}
+  \caption{\textbf{Overall condition profiles.} (a) RAR dominates on token frugality and context compactness, ties on accuracy, and trails Vector RAG only on speed. (b) RAR's loop latency ($433$\,s) sits below the stateless baseline ($612$\,s); Vector RAG is fastest ($389$\,s) because its retrieved context is shortest, but it pays for this with the highest redundancy (\cref{fig:ablation}).}
+  \label{fig:profiles}
+\end{figure}
 
 \subsection{Inference-Time Scaling Framing}
 RAR implements \emph{episodic} inference-time scaling~\citep{snell2024scaling}: additional compute is applied across an extended query sequence, with each cycle benefiting from compressed and structured insights of all prior cycles. The compression protocol is a form of information distillation that re-invests compute savings from reduced context length into improved proposal quality. Proposition~\ref{prop:complexity} establishes that this episodic structure incurs no asymptotic overhead---a favourable property absent from simple context window extension.
