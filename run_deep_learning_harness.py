@@ -4,9 +4,15 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
-from sklearn.datasets import make_gaussian_quantiles
+from sklearn.datasets import make_gaussian_quantiles, make_classification, load_digits
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 import gc
+
+# Benchmark selector. "manifold" reproduces the original near-chance synthetic
+# task byte-for-byte; "digits" is a real 10-class dataset (sklearn, no download);
+# "synth_tuned" is a tunable-difficulty make_classification task well above chance.
+DATASET = os.environ.get("RAR_DATASET", "manifold")
 
 # Set intra-op threads dynamically to avoid CPU/event loop thread starvation while maintaining matrix throughput
 import os
@@ -55,6 +61,56 @@ def generate_synthetic_manifold(n_samples=4000, seed=42):
     
     return X_train, y_train, X_val, y_val, X_test, y_test
 
+
+def _stratified_three_way(X, y, seed):
+    """Strict 50/25/25 train/val/test split (stratified), leakage-safe."""
+    import hashlib
+    hash_seed = int(hashlib.sha256(str(seed).encode("utf-8")).hexdigest(), 16) % 100000
+    X_tv, X_te, y_tv, y_te = train_test_split(
+        X, y, test_size=0.25, random_state=hash_seed, stratify=y)
+    X_tr, X_va, y_tr, y_va = train_test_split(
+        X_tv, y_tv, test_size=0.3333, random_state=seed, stratify=y_tv)
+    return X_tr, y_tr, X_va, y_va, X_te, y_te
+
+
+def get_dataset(seed=42):
+    """Dispatch on DATASET env var. Returns the six splits plus n_classes.
+
+    - "manifold"    : original near-chance synthetic task (unchanged; reproduces
+                      the results already reported). 3 classes.
+    - "digits"      : sklearn load_digits, a real 8x8 handwritten-digit set
+                      (64 features, 10 classes, no network). Standardized on the
+                      training split only. Ceiling ~95-98%.
+    - "synth_tuned" : make_classification with controllable separability so a
+                      well-tuned model reaches ~75-85% (4 classes, chance 25%).
+    """
+    set_seed(seed)
+    if DATASET == "manifold":
+        return (*generate_synthetic_manifold(n_samples=4000, seed=seed), 3)
+
+    if DATASET == "digits":
+        data = load_digits()
+        X = data.data.astype(np.float32)            # (1797, 64)
+        y = data.target.astype(np.int64)
+        n_classes = 10
+    elif DATASET == "synth_tuned":
+        X, y = make_classification(
+            n_samples=4000, n_features=64, n_informative=10, n_redundant=10,
+            n_repeated=0, n_classes=4, n_clusters_per_class=2,
+            class_sep=1.2, flip_y=0.03, random_state=seed)
+        X = X.astype(np.float32); y = y.astype(np.int64)
+        n_classes = 4
+    else:
+        raise ValueError(f"Unknown RAR_DATASET={DATASET!r}")
+
+    X_tr, y_tr, X_va, y_va, X_te, y_te = _stratified_three_way(X, y, seed)
+    # Standardize using ONLY training statistics (no leakage into val/test).
+    scaler = StandardScaler().fit(X_tr)
+    X_tr = scaler.transform(X_tr).astype(np.float32)
+    X_va = scaler.transform(X_va).astype(np.float32)
+    X_te = scaler.transform(X_te).astype(np.float32)
+    return X_tr, y_tr, X_va, y_va, X_te, y_te, n_classes
+
 # --- PyTorch Permutation-Invariant Residual MLP (Hardened Inductive Bias) -----
 class ResidualBlock(nn.Module):
     def __init__(self, dim, activation, dropout_rate):
@@ -86,7 +142,8 @@ class ResidualBlock(nn.Module):
         return self.post_act(x + self.block(x))
 
 class DynamicMLP(nn.Module):
-    def __init__(self, num_blocks=2, hidden_dim=32, activation="ReLU", dropout_rate=0.2):
+    def __init__(self, num_blocks=2, hidden_dim=32, activation="ReLU", dropout_rate=0.2,
+                 input_dim=64, num_classes=3):
         super(DynamicMLP, self).__init__()
         
         if activation == "ReLU":
@@ -98,7 +155,7 @@ class DynamicMLP(nn.Module):
             
         self.input_layer = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64, hidden_dim),
+            nn.Linear(input_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             act_fn()
         )
@@ -110,7 +167,7 @@ class DynamicMLP(nn.Module):
         
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dim, 3) # 3 classes
+            nn.Linear(hidden_dim, num_classes)
         )
         
     def forward(self, x):
@@ -172,8 +229,9 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
         return float(score)
 
     # Load dataset splits (excluding test split for the tuning loop)
-    X_train, y_train, X_val, y_val, _, _ = generate_synthetic_manifold(n_samples=4000, seed=dataset_seed)
-    
+    X_train, y_train, X_val, y_val, _, _, n_classes = get_dataset(seed=dataset_seed)
+    input_dim = X_train.shape[1]
+
     # Set seed for model initialization and training reproducibility
     set_seed(dataset_seed)
     
@@ -203,9 +261,11 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
         num_blocks=num_blocks,
         hidden_dim=hidden_dim,
         activation=activation,
-        dropout_rate=dropout_rate
+        dropout_rate=dropout_rate,
+        input_dim=input_dim,
+        num_classes=n_classes
     ).to(device)
-    
+
     criterion = nn.CrossEntropyLoss()
     
     # Select Optimizer
@@ -330,8 +390,9 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
         return float(np.mean(run_accs))
 
     # Load all splits, extracting the test split
-    X_train, y_train, X_val, y_val, X_test, y_test = generate_synthetic_manifold(n_samples=4000, seed=dataset_seed)
-    
+    X_train, y_train, X_val, y_val, X_test, y_test, n_classes = get_dataset(seed=dataset_seed)
+    input_dim = X_train.shape[1]
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pin_mem = torch.cuda.is_available()
     stream = torch.cuda.Stream() if torch.cuda.is_available() else None
@@ -363,9 +424,11 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
                 num_blocks=num_blocks,
                 hidden_dim=hidden_dim,
                 activation=activation,
-                dropout_rate=dropout_rate
+                dropout_rate=dropout_rate,
+                input_dim=input_dim,
+                num_classes=n_classes
             ).to(device)
-            
+
             criterion = nn.CrossEntropyLoss()
             if opt_type == "AdamW":
                 optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -419,10 +482,10 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
                 test_accuracies.append(test_acc)
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
-                    print("CUDA Out of Memory caught in Test Vault evaluation run. Returning chance fallback (0.333).")
+                    print("CUDA Out of Memory caught in Test Vault evaluation run. Returning chance fallback.")
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
-                    test_accuracies.append(0.3333)
+                    test_accuracies.append(1.0 / n_classes)
                 else:
                     raise e
             finally:
