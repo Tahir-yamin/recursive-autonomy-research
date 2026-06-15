@@ -675,7 +675,8 @@ async def execute_campaign():
             "prompt_densities": [],
             "wall_clock_latencies": [],
             "net_tokens": [],
-            "generalization_gaps": []
+            "generalization_gaps": [],
+            "per_cycle_trajectories": []
         }
 
     # SRE Hardening: Maintain a single ClientSession with persistent TCPConnector keep-alive pooling to prevent socket exhaustion
@@ -722,6 +723,7 @@ async def execute_campaign():
                     
                 start_time = time.time()
                 consolidator = AsyncMemoryConsolidator()
+                cycle_trace = []  # per-cycle records for the rot trajectory
                 
                 try:
                     for cycle in range(start_cycle, CYCLES + 1):
@@ -814,6 +816,14 @@ Your response MUST contain a single, clean JSON block in the format:
                             raw_history_buffer.append(trial_entry)
                              
                         densities.append(len(prompt) / 4000.0)
+                        cycle_trace.append({
+                            "cycle": cycle,
+                            "density": len(prompt) / 4000.0,
+                            "val_acc": acc,
+                            "running_best": max(t["acc"] for t in trials),
+                            "redundant": int(is_redundant),
+                            "mode": mode,
+                        })
                         print(f"  Proposed: {config} -> Val Acc: {acc:.4f} (Redundant: {is_redundant})")
                         
                         # Trigger consolidator background task
@@ -861,6 +871,7 @@ Your response MUST contain a single, clean JSON block in the format:
                 campaign_results["conditions"][cond]["wall_clock_latencies"].append(cond_duration)
                 campaign_results["conditions"][cond]["net_tokens"].append(net_tokens)
                 campaign_results["conditions"][cond]["generalization_gaps"].append(abs(max(val_accs) - test_acc))
+                campaign_results["conditions"][cond]["per_cycle_trajectories"].append(cycle_trace)
                 
                 # Clear isolated WAL logs on success
                 clear_wal(wal_path)
