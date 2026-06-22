@@ -88,6 +88,12 @@ def get_dataset(seed=42):
     if DATASET == "manifold":
         return (*generate_synthetic_manifold(n_samples=4000, seed=seed), 3)
 
+    if DATASET == "cifar":
+        # CIFAR-10 -> leak-free PCA-64 (the pre-registered hard Task B). Already
+        # train/standardized internally, so return its splits directly + n_classes.
+        import rar_tasks
+        return (*rar_tasks.make_task_b_cifar(seed=seed), 10)
+
     if DATASET == "digits":
         data = load_digits()
         X = data.data.astype(np.float32)            # (1797, 64)
