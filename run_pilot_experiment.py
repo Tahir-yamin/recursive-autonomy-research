@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import wilcoxon
 from typing import Dict, Any, Optional
 
-# Structured logger available for diagnostics. NOTE: several hot-path error/
-# warning sites still use print() and remain to be migrated to this logger.
+# Structured logger for all diagnostics. Hot-path status, warning, and error
+# sites use this logger (info/warning/error) rather than bare print().
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -157,13 +157,13 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
                     elif response.status == 429:
                         # SRE Hardening: Exponential backoff with jitter on rate-limits (no fast exit)
                         backoff = 2.0 * (2 ** attempt) + np.random.uniform(0.1, 1.0)
-                        print(f"Rate limited (429). Retrying after {backoff:.2f}s backoff...")
+                        log.warning(f"Rate limited (429). Retrying after {backoff:.2f}s backoff...")
                         await asyncio.sleep(backoff)
                     else:
-                        print(f"API Error {response.status}: {await response.text()}")
+                        log.error(f"API Error {response.status}: {await response.text()}")
                         await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
             except Exception as e:
-                print(f"Connection error: {e}")
+                log.warning(f"Connection error: {e}")
                 await asyncio.sleep((1.0 * (2 ** attempt)) + np.random.uniform(0.1, 1.0))
     finally:
         if session is None:
@@ -195,7 +195,7 @@ def parse_json_response(response_text):
             json_str = re.sub(r'//.*', '', json_str)
             return json.loads(json_str)
     except Exception as e:
-        print(f"Brace-matching JSON parsing failed: {e}")
+        log.error(f"Brace-matching JSON parsing failed: {e}")
     return None
 
 def is_valid_config(config):
@@ -229,7 +229,7 @@ def save_failed_payload(prompt, error_msg="Timeout or API Error"):
             f.write(f"Prompt:\n{prompt}\n")
             f.write("=" * 80 + "\n\n")
     except Exception as e:
-        print(f"Failed to log failed payload: {e}")
+        log.error(f"Failed to log failed payload: {e}")
 
 # --- Search Space and Constants (Ghost Parameters Purged) ---------------------
 CYCLES = int(os.environ.get("RAR_CYCLES", "60"))  # default 60 (matches real runs); override via env
@@ -299,9 +299,9 @@ def save_wal(condition, seed, cycle, trials, densities, net_tokens=0, custom_sta
                 if attempt < 4:
                     time.sleep(0.1 * (2 ** attempt))
                 else:
-                    print(f"SRE WAL Error: Failed to replace {wal_file} due to persistent lock.")
+                    log.error(f"SRE WAL Error: Failed to replace {wal_file} due to persistent lock.")
     except Exception as e:
-        print(f"Failed to write WAL atomically: {e}")
+        log.error(f"Failed to write WAL atomically: {e}")
     finally:
         if os.path.exists(tmp_file):
             try:
@@ -318,16 +318,16 @@ def load_wal(wal_file):
                 state = json.load(f)
             checksum = state.pop("checksum", None)
             if not checksum:
-                print("WAL file has no checksum. Discarding state.")
+                log.warning("WAL file has no checksum. Discarding state.")
                 return None
             state_str = json.dumps(state, sort_keys=True)
             computed = hashlib.sha256(state_str.encode('utf-8')).hexdigest()
             if computed != checksum:
-                print("WAL integrity verification failed! Checksum mismatch.")
+                log.warning("WAL integrity verification failed! Checksum mismatch.")
                 return None
             return state
         except Exception as e:
-            print(f"Failed to read WAL: {e}")
+            log.error(f"Failed to read WAL: {e}")
     return None
 
 def clear_wal(wal_file):
@@ -336,7 +336,7 @@ def clear_wal(wal_file):
         try:
             os.remove(wal_file)
         except Exception as e:
-            print(f"Failed to clear WAL: {e}")
+            log.error(f"Failed to clear WAL: {e}")
 
 
 # --- Random Hyperparameter Fallback ------------------------------------------
@@ -497,7 +497,7 @@ class AsyncMemoryConsolidator:
         self.task = asyncio.create_task(self._consolidate_worker(compressed_history, list(raw_history_buffer), session))
 
     async def _consolidate_worker(self, compressed_history, raw_history_buffer, session):
-        print("SRE Background Worker: Starting asynchronous GraphRAG memory consolidation (Louvain)...")
+        log.info("SRE Background Worker: Starting asynchronous GraphRAG memory consolidation (Louvain)...")
         start_time = time.time()
         
         try:
@@ -540,14 +540,14 @@ Your summary MUST contain:
                 self.result = compressed_history
                 self.success = False
             duration = time.time() - start_time
-            print(f"SRE Background Worker: Finished async Louvain consolidation in {duration:.2f}s.")
+            log.info(f"SRE Background Worker: Finished async Louvain consolidation in {duration:.2f}s.")
         except asyncio.CancelledError:
-            print("SRE Background Worker: Worker task cancelled.")
+            log.warning("SRE Background Worker: Worker task cancelled.")
             self.success = False
             self.result = compressed_history
             raise
         except Exception as e:
-            print(f"SRE Background Worker Crash: {e}")
+            log.error(f"SRE Background Worker Crash: {e}")
             self.error_status = str(e)
             self.success = False
             self.result = compressed_history
@@ -683,9 +683,9 @@ async def execute_campaign():
     connector = aiohttp.TCPConnector(limit=10, keepalive_timeout=30)
     async with aiohttp.ClientSession(connector=connector) as session:
         for seed in SEEDS:
-            print(f"\n========================================================")
-            print(f"> STARTING SEED CAMPAIGN: {seed}")
-            print(f"========================================================")
+            log.info(f"\n========================================================")
+            log.info(f"> STARTING SEED CAMPAIGN: {seed}")
+            log.info(f"========================================================")
             
             conditions_list = ["stateless_baseline", "vector_rag", "rar_compressed"]
             for cond_idx, cond in enumerate(conditions_list):
@@ -702,7 +702,7 @@ async def execute_campaign():
                 
                 # Check for resumption state
                 if wal:
-                    print(f"WAL FOUND: Resumed campaign from checkpoint! Active Seed: {seed}, Condition: {cond}, Cycle: {wal['cycle']}")
+                    log.info(f"WAL FOUND: Resumed campaign from checkpoint! Active Seed: {seed}, Condition: {cond}, Cycle: {wal['cycle']}")
                     campaign_results = wal["campaign_results"]
                     trials.extend(wal["trials"])
                     densities = wal.get("densities", [])
@@ -714,7 +714,7 @@ async def execute_campaign():
                         custom = wal.get("custom_state", {})
                         compressed_history = custom.get("compressed_history", "")
                         raw_history_buffer = custom.get("raw_history_buffer", [])
-                    print(f"Hydrated state. Resuming cycle from {start_cycle}...")
+                    log.info(f"Hydrated state. Resuming cycle from {start_cycle}...")
                 else:
                     clear_wal(wal_path)
                     
@@ -727,16 +727,16 @@ async def execute_campaign():
                 
                 try:
                     for cycle in range(start_cycle, CYCLES + 1):
-                        print(f"{cond.upper()} Cycle {cycle}/{CYCLES}...")
+                        log.info(f"{cond.upper()} Cycle {cycle}/{CYCLES}...")
                         
                         # Process completed background consolidations
                         if cond == "rar_compressed" and consolidator.task and consolidator.task.done():
                             if consolidator.success:
                                 compressed_history = consolidator.get_result()
                                 raw_history_buffer = raw_history_buffer[consolidator.consolidated_count:]
-                                print("SRE Main Loop: Hydrated GraphRAG memory and sliced buffer safely.")
+                                log.info("SRE Main Loop: Hydrated GraphRAG memory and sliced buffer safely.")
                             else:
-                                print("SRE Main Loop: Async consolidation failed. History buffer kept intact.")
+                                log.warning("SRE Main Loop: Async consolidation failed. History buffer kept intact.")
                             consolidator.task = None
                         
                         # Build context
@@ -824,7 +824,7 @@ Your response MUST contain a single, clean JSON block in the format:
                             "redundant": int(is_redundant),
                             "mode": mode,
                         })
-                        print(f"  Proposed: {config} -> Val Acc: {acc:.4f} (Redundant: {is_redundant})")
+                        log.info(f"  Proposed: {config} -> Val Acc: {acc:.4f} (Redundant: {is_redundant})")
                         
                         # Trigger consolidator background task
                         if cond == "rar_compressed" and cycle % 3 == 0 and not consolidator.is_running:
@@ -839,19 +839,19 @@ Your response MUST contain a single, clean JSON block in the format:
                             if consolidator.success:
                                 compressed_history = consolidator.get_result()
                         except Exception as e:
-                            print(f"Error awaiting final consolidator task: {e}")
+                            log.error(f"Error awaiting final consolidator task: {e}")
                             
                 finally:
                     # SRE Hardening: Ensure background tasks are cleanly terminated on exceptions/crashes
                     if consolidator.task and not consolidator.task.done():
-                        print("SRE Clean: Cancelling active background memory consolidator...")
+                        log.warning("SRE Clean: Cancelling active background memory consolidator...")
                         consolidator.task.cancel()
                         try:
                             await consolidator.task
                         except asyncio.CancelledError:
                             pass
                         except Exception as e:
-                            print(f"SRE Clean: Error during worker cancellation: {e}")
+                            log.error(f"SRE Clean: Error during worker cancellation: {e}")
                             
                 cond_duration = time.time() - start_time
                 val_accs = [t["acc"] for t in trials]
@@ -862,7 +862,7 @@ Your response MUST contain a single, clean JSON block in the format:
                 
                 # Locked Test Vault Evaluator (runs exactly once per condition/seed)
                 test_acc = await asyncio.to_thread(evaluate_test_vault, best_config, seed, 15)
-                print(f"{cond.upper()} Seed {seed} Final Val Acc: {max(val_accs):.4f}, Test Vault Acc: {test_acc:.4f}")
+                log.info(f"{cond.upper()} Seed {seed} Final Val Acc: {max(val_accs):.4f}, Test Vault Acc: {test_acc:.4f}")
                 
                 campaign_results["conditions"][cond]["val_accuracies"].append(max(val_accs))
                 campaign_results["conditions"][cond]["test_accuracies"].append(test_acc)
@@ -907,11 +907,11 @@ Your response MUST contain a single, clean JSON block in the format:
     with open(os.path.join(OUTPUT_DIR, output_file), "w") as f:
         json.dump(results_to_save, f, indent=2)
 
-    print(f"\nVerification Success: campaign logs written to {output_file}")
+    log.info(f"\nVerification Success: campaign logs written to {output_file}")
 
     # Skip aggregate plotting on single-seed runs (boxplots need the full set).
     if len(SEEDS) < 2:
-        print("Single-seed run complete. Run merge_seeds.py after all seeds finish.")
+        log.info("Single-seed run complete. Run merge_seeds.py after all seeds finish.")
         return
 
     # --- HIGH-FIDELITY PLOTTING -----------------------------------------------
@@ -972,7 +972,7 @@ Your response MUST contain a single, clean JSON block in the format:
     plt.savefig(os.path.join(OUTPUT_DIR, "fig3_density.png"), dpi=300)
     plt.close()
     
-    print("Scientific visual assets saved directly to the workspace.")
+    log.info("Scientific visual assets saved directly to the workspace.")
 
 if __name__ == "__main__":
     asyncio.run(execute_campaign())
