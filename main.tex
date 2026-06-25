@@ -114,7 +114,7 @@
 
 % --- Abstract -----------------------------------------------------------------
 \begin{abstract}
-Local Recursive Language Model context compression cuts an autonomous research agent's net token cost by roughly 68\% at accuracy parity, and we find that any accuracy benefit of agent memory is small and scales with task difficulty rather than being uniform. Across long-horizon machine learning optimization loops, standard agents suffer from context rot, an inference-time degradation in which accumulated logs displace task-critical findings. We introduce Recursive Autonomous Research (RAR), an agentic architecture that mitigates context rot through recursive context compression, an iterative propose-train-evaluate ratchet, and persistent GraphRAG memory consolidation. We evaluate RAR by tuning PyTorch Residual MLP (\texttt{DynamicMLP}) models across three classification benchmarks of graded difficulty---a tuned synthetic manifold, CIFAR-10 reduced to 64 principal components, and the \texttt{sklearn} handwritten-digits set---each over $N=10$ independent seeds and 60-cycle campaigns. On both hard benchmarks RAR is the top-performing condition and wins the majority of seeds (8/10 on the synthetic manifold, $86.70$ vs $86.00\%$ baseline, one-sided Wilcoxon $p = 0.116$; 7/10 on CIFAR, $44.62$ vs $44.28\%$, $p = 0.064$), but neither effect survives Holm correction across the two tasks (adjusted $p = 0.116$ and $0.129$); on the easy digits benchmark the conditions are indistinguishable ($95.1$ vs $96.1\%$, $p = 0.47$). Throughout, RAR holds accuracy at parity with the stateless baseline while reducing net token cost by $\sim 68\%$ and cutting late-cycle exploration redundancy several-fold relative to a compute-matched Vector RAG baseline. Local Write-Ahead Logging (WAL) state protection secures 100\% task recoverability under induced API failures. The honest reading is an efficiency result: structured context pruning preserves search quality at a fraction of the token budget, accompanied by a small, consistent, difficulty-dependent positive accuracy trend that we do not claim as statistically significant.
+Local Recursive Language Model context compression cuts an autonomous research agent's net token cost by roughly 68\% at accuracy parity, and we find that any accuracy benefit of agent memory is small and scales with task difficulty rather than being uniform. Across long-horizon machine learning optimization loops, standard agents suffer from context rot, an inference-time degradation in which accumulated logs displace task-critical findings. We introduce Recursive Autonomous Research (RAR), an agentic architecture that mitigates context rot through recursive context compression, an iterative propose-train-evaluate ratchet, and persistent GraphRAG memory consolidation. We evaluate RAR by tuning PyTorch Residual MLP (\texttt{DynamicMLP}) models across three classification benchmarks of graded difficulty---a tuned synthetic manifold, CIFAR-10 reduced to 64 principal components, and the \texttt{sklearn} handwritten-digits set---each over $N=10$ independent seeds and 60-cycle campaigns. On both hard benchmarks RAR is the top-performing condition and wins the majority of seeds (8/10 on the synthetic manifold, $86.70$ vs $86.00\%$ baseline, one-sided Wilcoxon $p = 0.116$; 7/10 on CIFAR, $44.62$ vs $44.28\%$, $p = 0.064$), but neither effect survives Holm correction across the two tasks (adjusted $p = 0.116$ and $0.129$); on the easy digits benchmark the conditions are indistinguishable ($95.1$ vs $96.1\%$, $p = 0.47$). Throughout, RAR holds accuracy at parity with the stateless baseline while reducing net token cost by $\sim 54\%$ (and prompt density by $56\%$) and cutting late-cycle exploration redundancy several-fold relative to a compute-matched Vector RAG baseline. Local Write-Ahead Logging (WAL) state protection secures 100\% task recoverability under induced API failures. The honest reading is an efficiency result: structured context pruning preserves search quality at a fraction of the token budget, accompanied by a small, consistent, difficulty-dependent positive accuracy trend that we do not claim as statistically significant.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -137,7 +137,7 @@ RAR integrates these paradigms to preserve coherence during long-horizon campaig
 \begin{enumerate}[label=\textbf{C\arabic*.},leftmargin=2.2em,itemsep=2pt]
   \item Formal characterisation of context rot: a piecewise-linear degradation model (\cref{sec:formulation}) and a distribution-free \emph{best-trial retention bound} (Proposition~\ref{prop:retention}) showing that a fixed-context agent retains its best result with probability only $\min(1,w/t)$---decaying as $\Theta(1/t)$ past its retention window $w$---whereas summary-consolidating memory retains it with horizon-independent probability $\ge 1-\rho$. The bound predicts the difficulty/horizon dependence we observe and is corroborated by our measured $\approx 29\%$ late-cycle retention in the stateless baseline.
   \item The RAR architecture---Iteration Engine, RLM-based Context Manager, GraphRAG Knowledge Map---with a proof that the compression protocol is asymptotically cost-equivalent to a stateless baseline (\cref{sec:arch,sec:compression,sec:complexity}).
-  \item A three-condition validation study across three classification benchmarks of graded difficulty ($N{=}10$ seeds, 60 cycles each) tuning PyTorch Residual MLP (\texttt{DynamicMLP}) models, validated against an offline, locked Test Vault (\cref{sec:experiments}). We establish that context compression reduces net token cost by $\sim 68\%$ while holding test accuracy at parity with the stateless baseline.
+  \item A three-condition validation study across three classification benchmarks of graded difficulty ($N{=}10$ seeds, 60 cycles each) tuning PyTorch Residual MLP (\texttt{DynamicMLP}) models, validated against an offline, locked Test Vault (\cref{sec:experiments}). We establish that context compression reduces net token cost by $\sim 54\%$ (prompt density $56\%$) while holding test accuracy at parity with the stateless baseline.
   \item A difficulty-graded accuracy finding reported in full, positive or null: RAR is the top-performing condition on both hard benchmarks and wins the majority of seeds (8/10 and 7/10), but the advantage is small ($+0.70$ and $+0.35$ points) and does not survive multiple-comparison correction; on the easy benchmark memory provides no benefit (\cref{sec:experiments,sec:ablation}). Any accuracy gain from agent memory therefore scales with task difficulty rather than being uniform.
   \item A rigorous three-metric evaluation protocol (CRS, RE, TE) with operationalisation guidance (\cref{sec:eval}).
 \end{enumerate}
@@ -208,7 +208,7 @@ For $\varepsilon = 0.80$ and calibration $(\dlow{=}0.50, \dhigh{=}0.90)$, $\tau(
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.7\linewidth]{fig5_degradation.png}
-  \caption{\textbf{Context Coherence Degradation Model ($q(\delta)$).} Proposal quality $q$ is piecewise-linear in context density $\delta$: it stays at 1.0 for $\delta \leq \delta_{\mathrm{low}}{=}0.50$, falls linearly to zero at $\delta_{\mathrm{high}}{=}0.90$, and saturates at zero thereafter. The coherence tolerance $\varepsilon{=}0.80$ defines the rot threshold $\tau{=}0.58$ (dashed line). Operating points: RAR ($\delta{=}0.387$, green $\triangle$) safely below $\tau$; Vector RAG ($\delta{=}0.660$, orange $\diamond$) in the degradation regime above $\tau$; Stateless Baseline ($\delta{=}1.409$, red $\times$) deep in the saturated zero-quality regime past $\delta_{\mathrm{high}}$.}
+  \caption{\textbf{Context Coherence Degradation Model ($q(\delta)$).} Proposal quality $q$ is piecewise-linear in context density $\delta$: it stays at 1.0 for $\delta \leq \delta_{\mathrm{low}}{=}0.50$, falls linearly to zero at $\delta_{\mathrm{high}}{=}0.90$, and saturates at zero thereafter. The coherence tolerance $\varepsilon{=}0.80$ defines the rot threshold $\tau{=}0.58$ (dashed line). Operating points: RAR ($\delta{=}0.48$, green $\triangle$) safely below $\tau$; Vector RAG ($\delta{=}0.71$, orange $\diamond$) in the degradation regime above $\tau$; Stateless Baseline ($\delta{=}1.10$, red $\times$) past $\delta_{\mathrm{high}}$ in the saturated regime.}
   \label{fig:degradation}
 \end{figure}
 
@@ -431,25 +431,23 @@ Synthetic manifold (hard)   & $86.00 \pm 1.03$ & $85.69 \pm 0.94$ & $86.70 \pm 1
 CIFAR-10$\to$PCA-64 (hard)  & $44.28 \pm 2.24$ & $44.26 \pm 2.34$ & $44.62 \pm 2.28$ & $+0.35$ & $7/10$ & $0.064$ \\
 Digits (easy control)       & $96.08 \pm 0.91$ & $95.71 \pm 1.43$ & $95.11 \pm 3.92$ & $-0.97$ & $5/10$ & $0.47$ \\
 \midrule
-\multicolumn{7}{L{15.5cm}}{\emph{Efficiency} (synthetic campaign, per condition): net tokens $350{,}249$ / $170{,}502$ / $\mathbf{105{,}055}$ ($\mathbf{-70\%}$ vs baseline); prompt density $\delta$ $1.41$ / $0.66$ / $\mathbf{0.39}$ ($\mathbf{-72.5\%}$); late-cycle redundancy $0.4$ / $33.2$ / $7.8$; SRE WAL recoverability $0\%$ / $100\%$ / $\mathbf{100\%}$.} \\
+\multicolumn{7}{L{15.5cm}}{\emph{Efficiency} (synthetic campaign, per condition): net tokens $274{,}777$ / $183{,}278$ / $\mathbf{126{,}617}$ ($\mathbf{-53.9\%}$ vs baseline); prompt density $\delta$ $1.10$ / $0.71$ / $\mathbf{0.48}$ ($\mathbf{-56.4\%}$); late-cycle redundancy $8.6$ / $33.5$ / $\mathbf{5.3}$; mean loop latency $1590$ / $822$ / $1377$\,s; WAL recoverability $0\%$ / $100\%$ / $\mathbf{100\%}$.} \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.78\linewidth]{fig9_reductions.png}
-  \caption{\textbf{What RAR cuts at equal accuracy} (synthetic campaign). Relative to the Stateless Baseline, RAR reduces net token cost by 70.0\%, context density by 72.5\%, and per-seed wall-clock latency by 29.2\%, while test accuracy stays at parity with the baseline across all three benchmarks (\cref{tab:empirical_results}).}
+  \includegraphics[width=\linewidth]{fig_efficiency.png}
+  \caption{\textbf{What RAR cuts at equal accuracy} (synthetic Task~A campaign, mean over $N{=}10$ seeds; generated by \texttt{plot\_efficiency.py} from the released data). Relative to the Stateless Baseline, RAR reduces net token cost by $53.9\%$ ($274.8$K$\to$$126.6$K) and prompt density by $56.4\%$ ($1.10\to0.48$), and has the lowest late-cycle redundancy of any condition ($5.3$ vs Vector RAG's $33.5$), while test accuracy stays at parity across all three benchmarks (\cref{tab:empirical_results}).}
   \label{fig:reductions}
 \end{figure}
 
-\paragraph{Efficiency is the robust effect.} On the synthetic campaign the stateless baseline's logs grew until prompt density reached $\delta = 1.41$, far beyond the compression regime, whereas RAR held $\delta = 0.39$ and the compute-matched Vector RAG $0.66$. RAR cut net token cost to $105{,}055$ characters, a $70\%$ reduction over the baseline's $350{,}249$, and held late-cycle redundancy to $7.8$ against Vector RAG's $33.2$. This efficiency gain replicates across the harder benchmarks and is the result we state without qualification: RAR sustains the agent's search at roughly one-third of the token budget.
+\paragraph{Efficiency is the robust effect.} On the synthetic campaign the stateless baseline's logs grew until prompt density reached $\delta = 1.10$, beyond the compression regime, whereas RAR held $\delta = 0.48$ and the compute-matched Vector RAG $0.71$. RAR cut net token cost to $126{,}617$ characters, a $53.9\%$ reduction over the baseline's $274{,}777$, and held late-cycle redundancy to $5.3$---the lowest of any condition---against Vector RAG's $33.5$. RAR thus sustains the agent's search at roughly half the token budget while exploring least redundantly.
 
 \paragraph{Accuracy: a small, difficulty-dependent trend, not a significant gain.} Across all three benchmarks RAR matches the stateless baseline on accuracy, and on the two hard benchmarks it is the single best condition, winning the majority of seeds (8/10 on the synthetic manifold, 7/10 on CIFAR). The synthetic advantage is $+0.70$ points (one-sided Wilcoxon $p = 0.116$) and the CIFAR advantage $+0.35$ points ($p = 0.064$). Holm correction across the two hard tasks leaves both non-significant (adjusted $p = 0.116$ and $0.129$), so we do not claim an accuracy benefit. On the easy digits control, where every configuration already exceeds $90\%$, RAR and the baseline are statistically indistinguishable ($95.11$ vs $96.08\%$, $p = 0.47$), with the larger RAR standard deviation driven by a single low-outlier seed. The pattern is consistent: any accuracy benefit of agent memory is small and grows with task difficulty, which is where accumulated history is most likely to carry reusable signal, but at the present scale it does not reach significance.
 
-\paragraph{Vector RAG stagnates.} The compute-matched retrieval baseline tracks the stateless agent on accuracy on every benchmark while incurring by far the highest exploration redundancy ($33.2$ on the synthetic campaign). By repeatedly surfacing and re-proposing nearby high-scoring neighbours without community-level synthesis, it spends its token budget re-evaluating known regions. RAR's compression reaches the same accuracy at a fraction of both the token cost and the redundancy.
-
-The empirical trajectories for CRS and context density are plotted in \cref{fig:crs,fig:density}.
+\paragraph{Vector RAG stagnates.} The compute-matched retrieval baseline tracks the stateless agent on accuracy on every benchmark while incurring by far the highest exploration redundancy ($33.5$ on the synthetic campaign). By repeatedly surfacing and re-proposing nearby high-scoring neighbours without community-level synthesis, it spends its token budget re-evaluating known regions. RAR's compression reaches the same accuracy at a fraction of both the token cost and the redundancy.
 
 \begin{figure*}[!t]
   \centering
@@ -458,33 +456,12 @@ The empirical trajectories for CRS and context density are plotted in \cref{fig:
   \label{fig:crs}
 \end{figure*}
 
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=\linewidth]{fig6_pareto.png}
-  \caption{\textbf{Accuracy--cost Pareto view.} Each faint point is one seed; the large markers are condition means. Accuracy sits in a tight $\sim$40\% band across all conditions, so the only axis that moves is cost: RAR occupies the cheapest corner of the frontier, matching baseline accuracy at roughly one-third of the tokens.}
-  \label{fig:pareto}
-\end{figure}
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.7\linewidth]{fig3_density.png}
-  \caption{\textbf{Empirical Context Density Trajectory.} The Stateless Baseline density ($\delta = 1.409$) and Vector RAG ($\delta = 0.660$) both operate above the RAR operating point ($\delta = 0.387$), which is the only condition that stays below the critical threshold $\tau(0.80) = 0.58$. Over the 60-cycle horizon the baseline density rises well past $\delta_{\mathrm{high}} = 0.90$, confirming that the benefit of compression grows with campaign length.}
-  \label{fig:density}
-\end{figure}
-
 \subsection{Ablation Analysis and the Critical Negative Finding}
 \label{sec:ablation}
 
-The three-condition design isolates compression and retrieval strategy. Context compression alone accounts for the efficiency gains---the 70.0\% token reduction and 72.5\% density reduction---at accuracy parity. The difficulty-graded benchmarks make the accuracy picture interpretable. On the easy digits control neither memory condition helps; on the two hard benchmarks RAR becomes the single best condition and wins most seeds, a trend consistent with accumulated history carrying more reusable signal as the task grows harder. The effect stays below significance after Holm correction, and the Knowledge Map's community summaries did not separate from compression-only RAR at this scale, so the added token overhead of graph-based synthesis is not yet justified. We read this as a scale-and-difficulty boundary rather than a null: the value of structured memory appears to grow with task difficulty and horizon, neither of which we have pushed to the regime where it would dominate.
+The three-condition design isolates compression and retrieval strategy. Context compression alone accounts for the efficiency gains---the $53.9\%$ token reduction and $56.4\%$ density reduction---at accuracy parity. The difficulty-graded benchmarks make the accuracy picture interpretable. On the easy digits control neither memory condition helps; on the two hard benchmarks RAR becomes the single best condition and wins most seeds, a trend consistent with accumulated history carrying more reusable signal as the task grows harder. The effect stays below significance after Holm correction, and the Knowledge Map's community summaries did not separate from compression-only RAR at this scale, so the added token overhead of graph-based synthesis is not yet justified. We read this as a scale-and-difficulty boundary rather than a null: the value of structured memory appears to grow with task difficulty and horizon, neither of which we have pushed to the regime where it would dominate.
 
-\Cref{fig:ablation} contrasts late-cycle exploration redundancy across the three conditions. The Stateless Baseline rarely repeats configurations ($0.4 \pm 0.7$) because, lacking memory, it samples the space broadly; Vector RAG incurs by far the most redundancy ($33.2 \pm 3.3$) as cosine retrieval keeps resurfacing similar high-scoring neighbours; RAR sits in between ($7.8 \pm 4.3$), roughly a four-fold reduction over Vector RAG, because compression preserves a directed yet compact search trajectory. Our practical recommendation is staged deployment: implement the core context manager first (RAR--NoKM), and introduce graph-based community detection only when campaign lengths exceed 50 cycles.
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.7\linewidth]{fig4_ablation_bar.png}
-  \caption{\textbf{Late-cycle exploration redundancy by condition} ($N{=}10$ seeds, mean $\pm$ s.d.). Vector RAG re-proposes near-duplicate configurations far more than the other conditions; RAR's compression keeps redundancy roughly $4\times$ lower than Vector RAG while still consolidating search history.}
-  \label{fig:ablation}
-\end{figure}
+Late-cycle exploration redundancy differs sharply across the three conditions (\cref{fig:reductions}). The Stateless Baseline shows moderate redundancy ($8.6$) as it re-samples without directed memory; Vector RAG incurs by far the most ($33.5$) as cosine retrieval keeps resurfacing similar high-scoring neighbours; RAR is the \emph{lowest} ($5.3$), a roughly six-fold reduction over Vector RAG, because compression preserves a directed yet compact search trajectory. Our practical recommendation is staged deployment: implement the core context manager first (RAR--NoKM), and introduce graph-based community detection only when campaign lengths exceed 50 cycles.
 
 \subsection{Limitations}
 \label{sec:limitations}
@@ -523,24 +500,6 @@ Fraction of improvements discovered at scale $S_1$ that produce statistically si
 \subsection{The Primacy of Compression over Knowledge Structure}
 The most consequential finding is that context compression alone accounts for essentially all observed efficiency gains at no accuracy cost. For practitioners, this implies a clear staged deployment: implement the Context Manager and Ratchet Store first (RAR--NoKM); add the Knowledge Map only when the search space and campaign duration meet the conditions in \cref{sec:ablation}. This recommendation avoids premature complexity while capturing the primary benefit.
 
-\begin{figure*}[!t]
-  \centering
-  \begin{subfigure}[t]{0.49\linewidth}
-    \centering
-    \includegraphics[width=\linewidth]{fig7_radar.png}
-    \caption{Normalized multi-metric profile (1.0 = best per axis).}
-    \label{fig:radar}
-  \end{subfigure}\hfill
-  \begin{subfigure}[t]{0.49\linewidth}
-    \centering
-    \includegraphics[width=\linewidth]{fig8_latency.png}
-    \caption{Mean per-seed wall-clock latency.}
-    \label{fig:latency}
-  \end{subfigure}
-  \caption{\textbf{Overall condition profiles.} (a) RAR dominates on token frugality and context compactness, ties on accuracy, and trails Vector RAG only on speed. (b) RAR's loop latency ($433$\,s) sits below the stateless baseline ($612$\,s); Vector RAG is fastest ($389$\,s) because its retrieved context is shortest, but it pays for this with the highest redundancy (\cref{fig:ablation}).}
-  \label{fig:profiles}
-\end{figure*}
-
 \subsection{Inference-Time Scaling Framing}
 RAR implements \emph{episodic} inference-time scaling~\citep{snell2024scaling}: additional compute is applied across an extended query sequence, with each cycle benefiting from compressed and structured insights of all prior cycles. The compression protocol is a form of information distillation that re-invests compute savings from reduced context length into improved proposal quality. Proposition~\ref{prop:complexity} establishes that this episodic structure incurs no asymptotic overhead---a favourable property absent from simple context window extension.
 
@@ -553,7 +512,7 @@ If late-cycle CRS improvements replicate at full scale with a live LLM agent and
 % ==============================================================================
 \section{Conclusion}
 
-We have introduced Recursive Autonomous Research, a framework addressing context rot---the inference-time reasoning degradation preventing existing autonomous research agents from operating effectively over long experimental horizons---through principled integration of Recursive Language Models, the AutoResearch ratchet loop, and a GraphRAG Knowledge Map. We formalised the context-rot degradation model (Definition~\ref{def:threshold}), specified the RAR architecture with a correctness-guaranteed compression protocol (Algorithm~\ref{alg:compression}), and proved asymptotic cost equivalence with stateless baselines (Proposition~\ref{prop:complexity}). Our validation campaign across three classification benchmarks of graded difficulty demonstrates that context compression reduces prompt context density by \textbf{72.5\%} and net token cost by \textbf{$\sim$68--70\%} while holding test accuracy at parity with the stateless baseline. On the two hard benchmarks RAR is the top condition and wins the majority of seeds (8/10 and 7/10), a small and consistent but not statistically significant accuracy trend (one-sided Wilcoxon $p = 0.116$ and $0.064$; Holm-adjusted non-significant) that strengthens with task difficulty; on the easy control it confers no benefit. The demonstrated contribution is therefore token efficiency at accuracy parity, with a difficulty-dependent positive accuracy trend that motivates evaluation at longer horizons and on harder search spaces. RAR provides a theoretically grounded, fault-tolerant foundation for autonomous research agents operating over long experimental horizons.
+We have introduced Recursive Autonomous Research, a framework addressing context rot---the inference-time reasoning degradation preventing existing autonomous research agents from operating effectively over long experimental horizons---through principled integration of Recursive Language Models, the AutoResearch ratchet loop, and a GraphRAG Knowledge Map. We formalised the context-rot degradation model (Definition~\ref{def:threshold}), specified the RAR architecture with a correctness-guaranteed compression protocol (Algorithm~\ref{alg:compression}), and proved asymptotic cost equivalence with stateless baselines (Proposition~\ref{prop:complexity}). Our validation campaign across three classification benchmarks of graded difficulty demonstrates that context compression reduces prompt context density by \textbf{56.4\%} and net token cost by \textbf{53.9\%} (synthetic campaign) while holding test accuracy at parity with the stateless baseline. On the two hard benchmarks RAR is the top condition and wins the majority of seeds (8/10 and 7/10), a small and consistent but not statistically significant accuracy trend (one-sided Wilcoxon $p = 0.116$ and $0.064$; Holm-adjusted non-significant) that strengthens with task difficulty; on the easy control it confers no benefit. The demonstrated contribution is therefore token efficiency at accuracy parity, with a difficulty-dependent positive accuracy trend that motivates evaluation at longer horizons and on harder search spaces. RAR provides a theoretically grounded, fault-tolerant foundation for autonomous research agents operating over long experimental horizons.
 
 % ==============================================================================
 \section{Safety, Ethical Considerations, and Alignment}
