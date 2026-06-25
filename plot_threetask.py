@@ -41,11 +41,22 @@ for ax, (title, key) in zip(axes, panels):
         patch.set_facecolor(col); patch.set_alpha(0.65)
     for i, arr in enumerate([b, v, r]):
         ax.scatter(np.full(len(arr), i + 1) + np.random.uniform(-0.08, 0.08, len(arr)),
-                   arr, s=12, color="black", alpha=0.5, zorder=3)
+                   arr, s=14, color="black", alpha=0.5, zorder=3)
+    # frame the boxes well: y-range from the bulk (5th pct) to max, padded; far-low
+    # outliers sit off-scale and are noted honestly rather than squashing every box
+    pooled = np.concatenate([b, v, r])
+    lo, hi = np.percentile(pooled, 5), pooled.max()
+    span = max(hi - lo, 1.0)
+    y0, y1 = lo - 0.18 * span, hi + 0.22 * span
+    ax.set_ylim(y0, y1)
+    n_off = int((pooled < y0).sum())
+    if n_off:
+        ax.text(0.5, 0.015, f"$\\downarrow$ {n_off} low-outlier seed(s) off-scale",
+                transform=ax.transAxes, ha="center", va="bottom", fontsize=9, color="#999")
     _, p = wilcoxon(r, b, alternative="greater")
     won = int((r > b).sum())
-    ax.set_title(f"{title}\nRAR {won}/10, Wilcoxon $p$={p:.3f}", fontsize=10)
-    ax.set_xticks([1, 2, 3]); ax.set_xticklabels(LABELS, fontsize=9, rotation=20, ha="right")
+    ax.set_title(f"{title}\nRAR {won}/10, Wilcoxon $p$={p:.3f}", fontsize=11)
+    ax.set_xticks([1, 2, 3]); ax.set_xticklabels(LABELS, fontsize=10, rotation=18, ha="right")
     ax.grid(True, axis="y", ls=":", alpha=0.5)
     ax.set_ylabel("Test accuracy (%)") if key == "A" else None
 
