@@ -261,6 +261,21 @@ agent retained it through its summary. The bound also clarifies a limitation of 
 study (\cref{sec:limitations}): with $w$ on the order of the campaign length at $60$ cycles,
 the regime $t\gg w$ where the gap should be largest is only beginning to be probed.
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.82\linewidth]{fig_retention.png}
+  \caption{\textbf{Proposition~\ref{prop:retention}: best-trial retention vs.\ horizon.}
+  A fixed-context agent retains its best-so-far result with probability $\min(1,w/t)$
+  (grey dashed; retention window $w{=}\lfloor\Cmax/\ell\rfloor\approx 20$ for our
+  $\Cmax{=}4000$, $\ell{\approx}192$), decaying as $\Theta(1/t)$ once $t>w$; summary
+  consolidation (RAR) retains it with horizon-independent probability $\geq 1-\rho$ (red).
+  The measured late-cycle retention of the stateless baseline ($0.29$ at $60$ cycles)
+  lands on the predicted curve (theory $20/60{=}0.33$). In the shaded $t\le w$ region both
+  agents still see their best result and accuracy is at parity; the decisive separation
+  occurs only at $t\gg w$, which the present $60$-cycle campaigns barely reach.}
+  \label{fig:retention}
+\end{figure}
+
 \subsection{RAR Architecture}
 \label{sec:arch}
 
