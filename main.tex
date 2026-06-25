@@ -578,7 +578,22 @@ To avoid overclaiming, we separate what the evaluated codebase implements from w
 All experiments are fully deterministic given the seeds. The PyTorch training harness, synthetic dataset generation parameters, and all hyperparameters are reported in full (\cref{sec:setup_pilot}). The campaign code, logs, and raw results (\texttt{pilot\_results.json}) are included in the supplementary material to enable absolute verifiability.
 
 \section*{Data Availability}
-The dataset is programmatically generated at runtime using a synthetic multi-dimensional non-linear manifold classification model. The dataset generation code is fully open-source and included in the accompanying codebase.
+The three benchmarks are reproducible from the released code: the synthetic manifold is generated at runtime (\texttt{rar\_tasks.make\_task\_a}); CIFAR-10 and the handwritten-digits set are standard public datasets reduced to 64 dimensions by the leakage-free pipeline in \texttt{rar\_tasks.py}. All raw per-seed results (\texttt{pilot\_results\_taskA.json}, \texttt{taskB\_cifar\_N10.json}, the digits campaign output), the pre-registration, and the analysis scripts that regenerate every table and figure are included in the accompanying codebase. No human-subjects or personally identifiable data are used.
+
+\section*{Ethics and Broader Impact}
+This work studies token efficiency and memory mechanisms for autonomous research agents; it uses only synthetic and standard public image datasets with no human subjects, no personal data, and no sensitive content. The primary broader-impact consideration is dual-use: more efficient long-horizon agents lower the cost of automated experimentation, which is broadly beneficial for reproducible science but, like any agent-automation advance, could accelerate undesirable automated optimization if misapplied. Our contribution is an efficiency-and-memory mechanism rather than a capability that raises new misuse surface beyond existing agent frameworks. We report a non-significant accuracy effect honestly and make no inflated capability claims.
+
+\section*{Safety and Prompt-Injection Considerations}
+Because RAR re-ingests free-text summaries of prior trials into the proposing prompt, it exposes an indirect prompt-injection surface: a malicious or malformed log entry could attempt to steer subsequent proposals. We mitigate this at the input boundary. Every proposed configuration must pass \texttt{is\_valid\_config}, a strict allow-list that accepts a configuration only if each field's value lies in the predefined \texttt{SEARCH\_SPACE} (correct type and an enumerated legal value); arbitrary or out-of-range payloads---including syntactically valid JSON crafted to inject instructions---are rejected before any code path consumes them. Summaries re-entering the prompt are additionally sanitised (\texttt{sanitize\_log\_entry}). This bounds the injection surface to the fixed hyperparameter grid; it does not defend against a compromised proposing model itself, which we treat as out of scope.
+
+\section*{AI-Use Disclosure}
+Large language models were used in two distinct roles, which we separate explicitly. (i) \emph{As the object of study:} an open-weight 9B-class model is the proposing orchestrator inside the evaluated system (\cref{sec:setup_pilot}); this is the experimental apparatus, not a writing aid. (ii) \emph{As an authoring aid:} AI assistance was used for code scaffolding, LaTeX formatting, and prose editing under author supervision; all experimental design, claims, statistical analysis, and final text are the authors' own, and every reported number is machine-generated from the released result files rather than written by a model.
+
+\section*{Conflict of Interest}
+The authors declare no competing financial or non-financial interests.
+
+\section*{Author Contributions}
+Omitted for double-blind review; will be provided in the camera-ready version following the CRediT taxonomy.
 
 \section*{Acknowledgements}
 Omitted for double-blind review.
