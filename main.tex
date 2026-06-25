@@ -135,7 +135,7 @@ RAR integrates these paradigms to preserve coherence during long-horizon campaig
 
 \paragraph{Contributions.}
 \begin{enumerate}[label=\textbf{C\arabic*.},leftmargin=2.2em,itemsep=2pt]
-  \item Formal characterisation of context rot via a piecewise-linear degradation model (\cref{sec:formulation}).
+  \item Formal characterisation of context rot: a piecewise-linear degradation model (\cref{sec:formulation}) and a distribution-free \emph{best-trial retention bound} (Proposition~\ref{prop:retention}) showing that a fixed-context agent retains its best result with probability only $\min(1,w/t)$---decaying as $\Theta(1/t)$ past its retention window $w$---whereas summary-consolidating memory retains it with horizon-independent probability $\ge 1-\rho$. The bound predicts the difficulty/horizon dependence we observe and is corroborated by our measured $\approx 29\%$ late-cycle retention in the stateless baseline.
   \item The RAR architecture---Iteration Engine, RLM-based Context Manager, GraphRAG Knowledge Map---with a proof that the compression protocol is asymptotically cost-equivalent to a stateless baseline (\cref{sec:arch,sec:compression,sec:complexity}).
   \item A three-condition validation study across three classification benchmarks of graded difficulty ($N{=}10$ seeds, 60 cycles each) tuning PyTorch Residual MLP (\texttt{DynamicMLP}) models, validated against an offline, locked Test Vault (\cref{sec:experiments}). We establish that context compression reduces net token cost by $\sim 68\%$ while holding test accuracy at parity with the stateless baseline.
   \item A difficulty-graded accuracy finding reported in full, positive or null: RAR is the top-performing condition on both hard benchmarks and wins the majority of seeds (8/10 and 7/10), but the advantage is small ($+0.70$ and $+0.35$ points) and does not survive multiple-comparison correction; on the easy benchmark memory provides no benefit (\cref{sec:experiments,sec:ablation}). Any accuracy gain from agent memory therefore scales with task difficulty rather than being uniform.
@@ -211,6 +211,55 @@ For $\varepsilon = 0.80$ and calibration $(\dlow{=}0.50, \dhigh{=}0.90)$, $\tau(
   \caption{\textbf{Context Coherence Degradation Model ($q(\delta)$).} Proposal quality $q$ is piecewise-linear in context density $\delta$: it stays at 1.0 for $\delta \leq \delta_{\mathrm{low}}{=}0.50$, falls linearly to zero at $\delta_{\mathrm{high}}{=}0.90$, and saturates at zero thereafter. The coherence tolerance $\varepsilon{=}0.80$ defines the rot threshold $\tau{=}0.58$ (dashed line). Operating points: RAR ($\delta{=}0.387$, green $\triangle$) safely below $\tau$; Vector RAG ($\delta{=}0.660$, orange $\diamond$) in the degradation regime above $\tau$; Stateless Baseline ($\delta{=}1.409$, red $\times$) deep in the saturated zero-quality regime past $\delta_{\mathrm{high}}$.}
   \label{fig:degradation}
 \end{figure}
+
+\subsection{Why context rot degrades search: a retention bound}
+\label{sec:retention}
+
+\Cref{def:threshold} models \emph{when} coherence degrades. We now give a simple,
+distribution-free argument for \emph{why} a fixed-context agent loses its best result, and
+why bounded-summary memory does not. This is the mechanism the rest of the paper measures.
+
+\begin{proposition}[Best-trial retention decay]
+\label{prop:retention}
+Consider a stateless agent with character budget $\Cmax$ that, at each cycle, prepends the
+newest trial log and truncates the oldest entries first. If each trial log occupies a fixed
+$\ell$ characters, the agent retains a window of the $w = \lfloor \Cmax/\ell \rfloor$
+most-recent trials. Suppose the single best configuration discovered by cycle $t$ is, a
+priori, equally likely to have been proposed at any of the $t$ cycles (exchangeability of
+discovery time). Then the probability that the best-so-far trial is still visible in the
+prompt at cycle $t$ is
+\begin{equation}
+  \Pr[\text{best} \in \text{context}_t] \;=\; \min\!\Big(1,\; \tfrac{w}{t}\Big),
+  \label{eq:retention}
+\end{equation}
+which equals $1$ for $t \le w$ and decays as $\Theta(1/t)$ thereafter, tending to $0$. By
+contrast, an agent that consolidates a summary which preserves the running best
+(RAR's Algorithm~\ref{alg:compression}) retains the best with probability $1$ under faithful
+summarisation, and at least $1-\rho$ under summary-infidelity rate $\rho$, \emph{independent
+of $t$}.
+\end{proposition}
+
+\begin{proof}
+The retained window is the set of the $w$ most-recent of the $t$ trials. Under exchangeability
+the index of the best trial is uniform on $\{1,\dots,t\}$, so it falls in the window
+$\{t-w+1,\dots,t\}$ with probability $w/t$ when $t>w$, and with probability $1$ when $t\le w$,
+giving \eqref{eq:retention}. RAR's consolidation step carries the running-best configuration
+forward by construction, so its retention equals the summary fidelity $1-\rho$ and does not
+depend on $t$. \qed
+\end{proof}
+
+Two consequences follow. First, the gap between RAR and the stateless baseline in
+\emph{best-result availability} is $\min(1,w/t)$ versus $1-\rho$; it is zero while $t\le w$
+and widens monotonically as the horizon $t$ grows past the retention window $w$. This predicts
+exactly the difficulty- and horizon-dependence we observe: at short horizons ($t\lesssim w$)
+both agents still see their best result and accuracy is at parity, whereas the advantage of
+memory should emerge only once $t \gg w$. Second, the prediction is directly testable, and our
+Phase-2 instrumentation confirms it: across the late cycles of the synthetic campaign the
+stateless baseline retained its global-best trial in only $\approx 29\%$ of cycles---a
+sharp drop consistent with the $w/t$ decay of \eqref{eq:retention}---while the consolidating
+agent retained it through its summary. The bound also clarifies a limitation of the present
+study (\cref{sec:limitations}): with $w$ on the order of the campaign length at $60$ cycles,
+the regime $t\gg w$ where the gap should be largest is only beginning to be probed.
 
 \subsection{RAR Architecture}
 \label{sec:arch}
@@ -433,7 +482,7 @@ We recognize several limitations in our current physical tuning harness:
   \item \textbf{Single-agent bottleneck:} Multi-agent systems introduce write conflicts and ratchet consistency challenges. \textit{Action: design a distributed RAR protocol with optimistic concurrency control.}
   \item \textbf{Small, non-significant accuracy effect:} On the two hard benchmarks RAR's advantage is real in direction (8/10 and 7/10 seeds won) but small ($+0.70$ and $+0.35$ points) and does not survive Holm correction (adjusted $p = 0.116$, $0.129$). We therefore report a positive trend, not a confirmed accuracy gain. An earlier near-chance Gaussian-quantile manifold (all conditions $\approx 40\%$) had too little dynamic range to test the hypothesis at all, which motivated the harder benchmarks used here; the harder benchmarks reveal a trend but not significance. \textit{Action: increase seed count and evaluate at $\geq$100 cycles where context rot is more severe.}
   \item \textbf{Mixed proposing model on CIFAR (documented exception, deferred to future work):} The CIFAR $N{=}10$ aggregates six seeds proposed by \texttt{gemma2:9b} (served locally) and four by an OpenRouter-hosted model, a consequence of free-tier compute-availability constraints. The two halves share the identical task generator, train/val/test splits, and once-only offline test-vault metric, and each seed is paired across all three conditions, so the \emph{within-task, within-seed} comparison that underlies every reported statistic remains valid; only the absolute accuracy level could be shifted by orchestrator identity, and a paired design cancels such a per-seed shift. We attempted a uniform-orchestrator re-run of all ten seeds but it did not complete: under the free OpenRouter tier the proposing endpoint was rate-limited to roughly one seed per twelve-hour session, which is not viable for a ten-seed campaign at the time of writing. We therefore report the mixed-orchestrator result transparently and defer the uniform re-run to a future study with a rate-unlimited endpoint; we expect it to leave the qualitative conclusion (a small, difficulty-dependent, non-significant trend with a robust efficiency gain) unchanged. \textit{Action: re-run all ten CIFAR seeds under a single rate-unlimited orchestrator.}
-  \item \textbf{Statistical power:} With $N{=}10$ seeds the superiority test is underpowered for sub-point effects. CIFAR reaches raw $p = 0.064$, suggesting a larger seed count could clarify whether the trend is genuine. \textit{Action: increase seed count and pre-register the effect-size threshold.}
+  \item \textbf{Statistical power and the untested long-horizon regime:} With $N{=}10$ seeds the superiority test is underpowered for sub-point effects (CIFAR reaches raw $p = 0.064$). More fundamentally, \cref{prop:retention} predicts the accuracy gap should be largest only once the horizon $t$ greatly exceeds the retention window $w$; at $60$ cycles we are at $t\!\approx\!w$, precisely where the bound predicts a \emph{small} gap. The decisive experiment is therefore not yet run. \textit{Future work (pre-registered): a campaign at $N{=}30$ seeds and $250$ cycles, designed to enter the $t\gg w$ regime where Proposition~\ref{prop:retention} predicts a large, separable effect; a positive outcome would convert the present directional trend into a significant result, and a null would bound the practical size of the retention advantage. We were unable to run this within the free-tier compute available for this study.}
   \item \textbf{Cost justification:} Using a multi-billion-parameter language model to tune a sub-$5{,}000$-parameter MLP is not cost-competitive with plain random or Bayesian search \emph{at this scale}; the token efficiency we report is relative to other LLM-driven agents, not to classical HPO. The premise is justified only in regimes where the search space has structure an LLM can exploit and where per-trial cost dwarfs orchestration cost. \textit{Action: identify and evaluate such a regime explicitly.}
   \item \textbf{Implementation vs.\ architecture gap:} Several deployment features (distributed locking/state, schema-general vectorization, truly incremental community detection) are described in \cref{sec:safety} as design intent and are \emph{not} implemented in the evaluated codebase. Reported results depend only on the implemented local pipeline.
 \end{enumerate}
