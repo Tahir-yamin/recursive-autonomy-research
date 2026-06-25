@@ -453,8 +453,8 @@ The empirical trajectories for CRS and context density are plotted in \cref{fig:
 
 \begin{figure*}[!t]
   \centering
-  \includegraphics[width=0.92\linewidth]{fig2_crs_trajectory.png}
-  \caption{\textbf{Synthetic-manifold campaign ($N{=}10$ seeds, 60 cycles).} Left: the test-accuracy distribution across all ten seeds per condition (box = interquartile range, points = individual seeds); RAR edges the baseline (8/10 seeds) but the Wilcoxon test is not significant ($p = 0.116$). Right: mean net token cost per condition---RAR uses 70.0\% fewer tokens than the Stateless Baseline and 38.4\% fewer than Vector RAG. Together the panels show RAR's small accuracy edge at a fraction of the token budget.}
+  \includegraphics[width=0.98\linewidth]{fig_threetask.png}
+  \caption{\textbf{Test-vault accuracy across the three benchmarks ($N{=}10$ seeds, 60 cycles).} Box = interquartile range, orange line = median, black diamond = mean, points = individual seeds. On both hard benchmarks (left, centre) the RAR distribution sits above the stateless baseline and RAR wins the majority of seeds ($8/10$ and $7/10$), though the one-sided Wilcoxon test is not significant ($p = 0.116$, $0.064$). On the easy digits control (right) the conditions overlap and RAR is neutral ($p = 0.47$; the low RAR outlier is a single seed). Generated directly from the released per-task data by \texttt{plot\_threetask.py}.}
   \label{fig:crs}
 \end{figure*}
 
