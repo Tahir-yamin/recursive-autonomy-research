@@ -5,6 +5,7 @@ import os, json, numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+plt.rcParams.update({"font.size":13,"axes.titlesize":13,"axes.labelsize":12,"xtick.labelsize":11,"ytick.labelsize":11})
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 c = json.load(open(os.path.join(ROOT, "pilot_results_taskA.json")))["data"]["conditions"]

@@ -6,6 +6,7 @@ import os, json, numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+plt.rcParams.update({"font.size":13,"axes.titlesize":13,"axes.labelsize":12,"xtick.labelsize":11,"ytick.labelsize":11})
 from scipy.stats import wilcoxon
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
