@@ -50,9 +50,10 @@ No claim of accuracy *superiority* or SOTA is made. The headline contribution is
 
 1. Accuracy effect small and non-significant after Holm (N=10 underpowered for sub-point
    effects; CIFAR borderline at raw p=0.064).
-2. **Mixed proposing model on CIFAR** (6 gemma2 + 4 OpenRouter seeds) — a uniform re-run is
-   in progress (`rar-cifar-uniform-{a,b}`) and, if complete before submission, will replace
-   the mixed N=10.
+2. **Mixed proposing model on CIFAR** (6 gemma2 + 4 OpenRouter seeds) — documented exception,
+   deferred to future work. A uniform re-run was attempted but the free OpenRouter tier
+   rate-limited it to ~1 seed / 12h (non-viable for N=10); the paired within-seed design
+   cancels any per-seed orchestrator offset, so the within-task statistics remain valid.
 3. Classification-only task families; max 60 cycles; bounded-memory theory only.
 4. Several systems features (distributed locking, incremental community detection) are design
    intent, not implemented — flagged explicitly, not claimed as results.
@@ -78,6 +79,6 @@ No claim of accuracy *superiority* or SOTA is made. The headline contribution is
 - [x] Limitations section complete and candid
 - [x] No leaked credentials; anti-fabrication guard in place
 - [x] Code migrated to structured logging; buzzwords trimmed
-- [ ] (optional, in progress) Uniform-orchestrator CIFAR N=10 to remove the mixed-model caveat
+- [x] Mixed-orchestrator CIFAR framed as a documented exception deferred to future work (uniform re-run rate-limited on free tier)
 - [ ] Anonymize author/repo identifiers for double-blind (currently anonymous title block; scrub repo URL on submission)
 - [ ] Generate camera-ready figures from the three-task data (`plot_best_found.py` + Table via `inject_results.py`)
