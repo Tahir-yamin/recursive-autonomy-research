@@ -73,64 +73,89 @@ def _stratified_three_way(X, y, seed):
     return X_tr, y_tr, X_va, y_va, X_te, y_te
 
 
+_DEVICE = None
+def usable_device():
+    """Return a torch device that actually works. Honors RAR_TORCH_DEVICE; otherwise
+    probes a real CUDA op, because some GPUs (e.g. Pascal P100 under a cu12.x wheel)
+    report is_available()==True but fail at kernel launch ('no kernel image'). Falls
+    back to CPU on any such failure. Cached after the first probe."""
+    global _DEVICE
+    forced = os.environ.get("RAR_TORCH_DEVICE")
+    if forced:
+        return torch.device(forced)
+    if _DEVICE is not None:
+        return _DEVICE
+    dev = torch.device("cpu")
+    if torch.cuda.is_available():
+        try:
+            _ = (torch.randn(8, 8, device="cuda") @ torch.randn(8, 8, device="cuda")).sum().item()
+            dev = torch.device("cuda")
+        except Exception:
+            dev = torch.device("cpu")
+    _DEVICE = dev
+    return dev
+
+
+# --- Dataset registry. Each loader is registered by RAR_DATASET name, so adding a
+# benchmark is a one-line registration rather than another branch in a dispatch chain.
+# Two kinds: "full" loaders return the complete (6 splits + n_classes); "raw" loaders
+# return (X, y, n_classes) and share the common leak-free split + train-only scaling.
+_FULL_LOADERS = {}   # name -> fn(seed) -> (Xtr,ytr,Xva,yva,Xte,yte,n_classes)
+_RAW_LOADERS = {}    # name -> fn(seed) -> (X, y, n_classes)
+
+def _register_full(name): return lambda fn: (_FULL_LOADERS.__setitem__(name, fn), fn)[1]
+def _register_raw(name):  return lambda fn: (_RAW_LOADERS.__setitem__(name, fn), fn)[1]
+
+@_register_full("manifold")
+def _load_manifold(seed):  # original near-chance synthetic task, reproduced byte-for-byte
+    return (*generate_synthetic_manifold(n_samples=4000, seed=seed), 3)
+
+@_register_full("cifar")
+def _load_cifar(seed):     # CIFAR-10 -> leak-free PCA-64 (pre-registered hard Task B)
+    import rar_tasks
+    return (*rar_tasks.make_task_b_cifar(seed=seed), 10)
+
+@_register_raw("digits")
+def _load_digits(seed):    # sklearn handwritten digits (64 feat, 10 classes, no network)
+    data = load_digits()
+    return data.data.astype(np.float32), data.target.astype(np.int64), 10
+
+@_register_raw("synth_tuned")
+def _load_synth_tuned(seed):  # tunable-separability make_classification, well above chance
+    X, y = make_classification(
+        n_samples=4000, n_features=64, n_informative=10, n_redundant=10,
+        n_repeated=0, n_classes=4, n_clusters_per_class=2,
+        class_sep=1.2, flip_y=0.03, random_state=seed)
+    return X.astype(np.float32), y.astype(np.int64), 4
+
+@_register_raw("openml")
+def _load_openml(seed):    # real tabular task (default 'vehicle'); override via RAR_OPENML_*
+    from sklearn.datasets import fetch_openml
+    name = os.environ.get("RAR_OPENML_NAME", "vehicle")
+    version = int(os.environ.get("RAR_OPENML_VERSION", "1"))
+    d = fetch_openml(name=name, version=version, as_frame=True)
+    Xdf = d.data.apply(lambda c: c.cat.codes if str(c.dtype) == "category" else c)
+    X = np.nan_to_num(Xdf.to_numpy(dtype=np.float32))
+    classes, y = np.unique(np.asarray(d.target), return_inverse=True)
+    return X, y.astype(np.int64), int(len(classes))
+
+
 def get_dataset(seed=42):
-    """Dispatch on DATASET env var. Returns the six splits plus n_classes.
-
-    - "manifold"    : original near-chance synthetic task (unchanged; reproduces
-                      the results already reported). 3 classes.
-    - "digits"      : sklearn load_digits, a real 8x8 handwritten-digit set
-                      (64 features, 10 classes, no network). Standardized on the
-                      training split only. Ceiling ~95-98%.
-    - "synth_tuned" : make_classification with controllable separability so a
-                      well-tuned model reaches ~75-85% (4 classes, chance 25%).
-    """
+    """Return (Xtr,ytr,Xva,yva,Xte,yte,n_classes) for the benchmark named by RAR_DATASET.
+    Dispatch is table-driven via the loader registry above (see _FULL_LOADERS/_RAW_LOADERS)."""
     set_seed(seed)
-    if DATASET == "manifold":
-        return (*generate_synthetic_manifold(n_samples=4000, seed=seed), 3)
-
-    if DATASET == "cifar":
-        # CIFAR-10 -> leak-free PCA-64 (the pre-registered hard Task B). Already
-        # train/standardized internally, so return its splits directly + n_classes.
-        import rar_tasks
-        return (*rar_tasks.make_task_b_cifar(seed=seed), 10)
-
-    if DATASET == "digits":
-        data = load_digits()
-        X = data.data.astype(np.float32)            # (1797, 64)
-        y = data.target.astype(np.int64)
-        n_classes = 10
-    elif DATASET == "synth_tuned":
-        X, y = make_classification(
-            n_samples=4000, n_features=64, n_informative=10, n_redundant=10,
-            n_repeated=0, n_classes=4, n_clusters_per_class=2,
-            class_sep=1.2, flip_y=0.03, random_state=seed)
-        X = X.astype(np.float32); y = y.astype(np.int64)
-        n_classes = 4
-    elif DATASET == "openml":
-        # Recognizable real tabular task from OpenML (default: 'vehicle', a
-        # 4-class silhouette set). Override with RAR_OPENML_NAME / _VERSION.
-        from sklearn.datasets import fetch_openml
-        name = os.environ.get("RAR_OPENML_NAME", "vehicle")
-        version = int(os.environ.get("RAR_OPENML_VERSION", "1"))
-        d = fetch_openml(name=name, version=version, as_frame=True)
-        Xdf = d.data
-        # one-hot any categorical columns; keep numerics; impute simple
-        Xdf = Xdf.apply(lambda c: c.cat.codes if str(c.dtype) == "category" else c)
-        X = Xdf.to_numpy(dtype=np.float32)
-        X = np.nan_to_num(X)
-        classes, y = np.unique(np.asarray(d.target), return_inverse=True)
-        y = y.astype(np.int64)
-        n_classes = int(len(classes))
-    else:
-        raise ValueError(f"Unknown RAR_DATASET={DATASET!r}")
-
-    X_tr, y_tr, X_va, y_va, X_te, y_te = _stratified_three_way(X, y, seed)
-    # Standardize using ONLY training statistics (no leakage into val/test).
-    scaler = StandardScaler().fit(X_tr)
-    X_tr = scaler.transform(X_tr).astype(np.float32)
-    X_va = scaler.transform(X_va).astype(np.float32)
-    X_te = scaler.transform(X_te).astype(np.float32)
-    return X_tr, y_tr, X_va, y_va, X_te, y_te, n_classes
+    if DATASET in _FULL_LOADERS:
+        return _FULL_LOADERS[DATASET](seed)
+    if DATASET in _RAW_LOADERS:
+        X, y, n_classes = _RAW_LOADERS[DATASET](seed)
+        X_tr, y_tr, X_va, y_va, X_te, y_te = _stratified_three_way(X, y, seed)
+        scaler = StandardScaler().fit(X_tr)  # train-only statistics, no val/test leakage
+        X_tr = scaler.transform(X_tr).astype(np.float32)
+        X_va = scaler.transform(X_va).astype(np.float32)
+        X_te = scaler.transform(X_te).astype(np.float32)
+        return X_tr, y_tr, X_va, y_va, X_te, y_te, n_classes
+    raise ValueError(f"Unknown RAR_DATASET={DATASET!r} (registered: "
+                     f"{sorted(_FULL_LOADERS) + sorted(_RAW_LOADERS)})")
 
 # --- PyTorch Permutation-Invariant Residual MLP (Hardened Inductive Bias) -----
 class ResidualBlock(nn.Module):
@@ -257,7 +282,7 @@ def train_and_evaluate(config, dataset_seed=42, epochs=15):
     set_seed(dataset_seed)
     
     # Detect GPU acceleration and setup custom stream
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = usable_device()
     pin_mem = torch.cuda.is_available()
     stream = torch.cuda.Stream() if torch.cuda.is_available() else None
     
@@ -414,7 +439,7 @@ def evaluate_test_vault(best_config, dataset_seed=42, epochs=15):
     X_train, y_train, X_val, y_val, X_test, y_test, n_classes = get_dataset(seed=dataset_seed)
     input_dim = X_train.shape[1]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = usable_device()
     pin_mem = torch.cuda.is_available()
     stream = torch.cuda.Stream() if torch.cuda.is_available() else None
     
