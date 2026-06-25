@@ -44,14 +44,13 @@ for ax, (title, key) in zip(axes, panels):
     _, p = wilcoxon(r, b, alternative="greater")
     won = int((r > b).sum())
     ax.set_title(f"{title}\nRAR {won}/10, Wilcoxon $p$={p:.3f}", fontsize=10)
-    ax.set_xticks([1, 2, 3]); ax.set_xticklabels(LABELS, fontsize=8, rotation=12)
+    ax.set_xticks([1, 2, 3]); ax.set_xticklabels(LABELS, fontsize=9, rotation=20, ha="right")
     ax.grid(True, axis="y", ls=":", alpha=0.5)
     ax.set_ylabel("Test accuracy (%)") if key == "A" else None
 
-fig.suptitle("Test-vault accuracy across three benchmarks ($N{=}10$ seeds, 60 cycles): "
-             "RAR edges the baseline on hard tasks, neutral on the easy control",
-             fontsize=11)
-fig.tight_layout(rect=[0, 0, 1, 0.95])
+fig.suptitle("Test-vault accuracy across three benchmarks ($N{=}10$ seeds, 60 cycles)",
+             fontsize=12)
+fig.tight_layout(rect=[0, 0.02, 1, 0.94])
 out = os.path.join(ROOT, "fig_threetask.png")
 fig.savefig(out, dpi=160)
 print("saved", out)

@@ -36,7 +36,7 @@ async def call_llm(prompt, session=None, system_prompt="You are a precise machin
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY") or API_KEY_DEFAULT
     
-    # SRE Fast Simulation Mode — MUST be opted into explicitly via RAR_SIM=1.
+    # SRE Fast Simulation Mode -- MUST be opted into explicitly via RAR_SIM=1.
     # Without a key AND without the opt-in we refuse to run, so a lost Colab env
     # var can never silently fabricate "results" (root cause of the taskB corruption).
     if not gemini_key and not deepseek_key and not openrouter_key:

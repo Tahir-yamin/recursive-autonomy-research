@@ -21,16 +21,19 @@ ax.axhline(1 - rho, color="#d62728", lw=2.2,
 # measured point: stateless late-cycle best-retention ~29% at the 60-cycle campaign
 ax.scatter([60], [0.29], s=90, color="#1f1f1f", zorder=5,
            label="Measured (stateless, 60-cyc): 0.29")
-ax.annotate("theory: 20/60 = 0.33\nmeasured: 0.29", xy=(60, 0.29), xytext=(95, 0.45),
-            fontsize=9, arrowprops=dict(arrowstyle="->", color="#555"))
+# annotation placed in the empty lower-left wedge, arrow up-right to the point
+ax.annotate("theory $20/60=0.33$\nmeasured $0.29$", xy=(60, 0.29), xytext=(95, 0.18),
+            fontsize=9, ha="left", va="center",
+            arrowprops=dict(arrowstyle="->", color="#555"))
 ax.axvspan(1, w, color="#cfe8cf", alpha=0.5)
-ax.text(w/2, 0.06, r"$t\leq w$" "\n(parity)", ha="center", fontsize=8, color="#2a6")
-ax.text(165, 0.06, r"$t\gg w$  (gap widens)", ha="center", fontsize=8, color="#a33")
+ax.text(w/2, 0.55, r"$t\leq w$" "\n(parity)", ha="center", fontsize=8, color="#2a6")
+ax.text(175, 0.12, r"$t\gg w$ (gap widens)", ha="center", fontsize=8, color="#a33")
 ax.set_xlabel("Cycle horizon $t$")
 ax.set_ylabel(r"$\Pr[\text{best-so-far} \in \text{context}]$")
-ax.set_ylim(0, 1.05); ax.set_xlim(1, 250)
-ax.set_title("Proposition 2: best-trial retention decays as $1/t$; summary memory does not")
-ax.grid(True, ls=":", alpha=0.6); ax.legend(loc="center right", fontsize=9)
+ax.set_ylim(0, 1.08); ax.set_xlim(1, 250)
+ax.set_title("Proposition 2: best-trial retention decays as $1/t$;\nsummary memory does not", fontsize=11)
+ax.grid(True, ls=":", alpha=0.6)
+ax.legend(loc="upper right", fontsize=8.5, framealpha=0.95)
 fig.tight_layout()
 out = os.path.join(ROOT, "fig_retention.png")
 fig.savefig(out, dpi=160)
