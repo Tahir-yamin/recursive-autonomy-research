@@ -1,0 +1,1538 @@
+{
+  "meta": "Upgrade campaign with PyTorch Residual MLP hyperparameter search on dynamic synthetic manifold",
+  "SEEDS": [
+    13
+  ],
+  "CYCLES": 60,
+  "wilcoxon_p_value_RAR_vs_Baseline": "n/a (single-seed run; merge before testing)",
+  "data": {
+    "dataset": "Dynamic Synthetic Manifold (PyTorch Residual MLP)",
+    "SEEDS": [
+      13
+    ],
+    "CYCLES": 60,
+    "conditions": {
+      "stateless_baseline": {
+        "val_accuracies": [
+          0.9710467706013363
+        ],
+        "test_accuracies": [
+          0.9568888888888887
+        ],
+        "redundancies": [
+          0
+        ],
+        "prompt_densities": [
+          1.4117958333333334
+        ],
+        "wall_clock_latencies": [
+          666.8557271957397
+        ],
+        "net_tokens": [
+          350831
+        ],
+        "generalization_gaps": [
+          0.014157881712447584
+        ],
+        "per_cycle_trajectories": [
+          [
+            {
+              "cycle": 1,
+              "density": 0.24625,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9532293986636972,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 2,
+              "density": 0.28025,
+              "val_acc": 0.9198218262806236,
+              "running_best": 0.9532293986636972,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 3,
+              "density": 0.32025,
+              "val_acc": 0.34521158129175944,
+              "running_best": 0.9532293986636972,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 4,
+              "density": 0.361,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9532293986636972,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 5,
+              "density": 0.401,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9532293986636972,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 6,
+              "density": 0.44125,
+              "val_acc": 0.9376391982182628,
+              "running_best": 0.9532293986636972,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 7,
+              "density": 0.4815,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 8,
+              "density": 0.5235,
+              "val_acc": 0.8841870824053452,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 9,
+              "density": 0.5635,
+              "val_acc": 0.9755011135857461,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 10,
+              "density": 0.60525,
+              "val_acc": 0.9020044543429844,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 11,
+              "density": 0.646,
+              "val_acc": 0.6792873051224945,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 12,
+              "density": 0.686,
+              "val_acc": 0.9398663697104677,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 13,
+              "density": 0.728,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 14,
+              "density": 0.76875,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 15,
+              "density": 0.80925,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 16,
+              "density": 0.85,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 17,
+              "density": 0.892,
+              "val_acc": 0.933184855233853,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 18,
+              "density": 0.93175,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 19,
+              "density": 0.9735,
+              "val_acc": 0.9175946547884187,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 20,
+              "density": 1.015,
+              "val_acc": 0.9287305122494433,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 21,
+              "density": 1.05575,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 22,
+              "density": 1.097,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 23,
+              "density": 1.13725,
+              "val_acc": 0.9153674832962138,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 24,
+              "density": 1.17875,
+              "val_acc": 0.9688195991091314,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 25,
+              "density": 1.2185,
+              "val_acc": 0.732739420935412,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 26,
+              "density": 1.2605,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 27,
+              "density": 1.301,
+              "val_acc": 0.844097995545657,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 28,
+              "density": 1.3425,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 29,
+              "density": 1.38375,
+              "val_acc": 0.9599109131403119,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 30,
+              "density": 1.4245,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 31,
+              "density": 1.46525,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 32,
+              "density": 1.5065,
+              "val_acc": 0.9688195991091314,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 33,
+              "density": 1.54825,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 34,
+              "density": 1.58875,
+              "val_acc": 0.9465478841870824,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 35,
+              "density": 1.6285,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 36,
+              "density": 1.6685,
+              "val_acc": 0.9599109131403119,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 37,
+              "density": 1.70875,
+              "val_acc": 0.9198218262806236,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 38,
+              "density": 1.74925,
+              "val_acc": 0.9710467706013363,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 39,
+              "density": 1.79125,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 40,
+              "density": 1.83125,
+              "val_acc": 0.9376391982182628,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 41,
+              "density": 1.87175,
+              "val_acc": 0.9354120267260579,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 42,
+              "density": 1.912,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 43,
+              "density": 1.9525,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 44,
+              "density": 1.993,
+              "val_acc": 0.9621380846325167,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 45,
+              "density": 2.03475,
+              "val_acc": 0.9420935412026726,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 46,
+              "density": 2.07475,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 47,
+              "density": 2.116,
+              "val_acc": 0.9242761692650334,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 48,
+              "density": 2.15575,
+              "val_acc": 0.8819599109131403,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 49,
+              "density": 2.19575,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 50,
+              "density": 2.2375,
+              "val_acc": 0.9465478841870824,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 51,
+              "density": 2.2775,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 52,
+              "density": 2.27575,
+              "val_acc": 0.9465478841870824,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 53,
+              "density": 2.27625,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 54,
+              "density": 2.27525,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 55,
+              "density": 2.2755,
+              "val_acc": 0.9175946547884187,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 56,
+              "density": 2.276,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 57,
+              "density": 2.276,
+              "val_acc": 0.8418708240534521,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 58,
+              "density": 2.27425,
+              "val_acc": 0.18262806236080179,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 59,
+              "density": 2.2745,
+              "val_acc": 0.9020044543429844,
+              "running_best": 0.9710467706013363,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 60,
+              "density": 2.27325,
+              "val_acc": 0.9465478841870824,
+              "running_best": 0.9710467706013363,
+              "redundant": 0,
+              "mode": "LLM"
+            }
+          ]
+        ]
+      },
+      "vector_rag": {
+        "val_accuracies": [
+          0.9755011135857461
+        ],
+        "test_accuracies": [
+          0.9697777777777778
+        ],
+        "redundancies": [
+          31
+        ],
+        "prompt_densities": [
+          0.6632625000000001
+        ],
+        "wall_clock_latencies": [
+          487.17016792297363
+        ],
+        "net_tokens": [
+          171183
+        ],
+        "generalization_gaps": [
+          0.005723335807968244
+        ],
+        "per_cycle_trajectories": [
+          [
+            {
+              "cycle": 1,
+              "density": 0.24625,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9510022271714922,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 2,
+              "density": 0.2905,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 3,
+              "density": 0.33675,
+              "val_acc": 0.34521158129175944,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 4,
+              "density": 0.3825,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 5,
+              "density": 0.428,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9643652561247216,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 6,
+              "density": 0.4735,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 7,
+              "density": 0.5205,
+              "val_acc": 0.888641425389755,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 8,
+              "density": 0.5655,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 9,
+              "density": 0.61125,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 10,
+              "density": 0.658,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 11,
+              "density": 0.703,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 12,
+              "density": 0.70325,
+              "val_acc": 0.3051224944320713,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 13,
+              "density": 0.7055,
+              "val_acc": 0.888641425389755,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 14,
+              "density": 0.7055,
+              "val_acc": 0.9220489977728286,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 15,
+              "density": 0.7055,
+              "val_acc": 0.9220489977728286,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 16,
+              "density": 0.7055,
+              "val_acc": 0.888641425389755,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 17,
+              "density": 0.7055,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 18,
+              "density": 0.7065,
+              "val_acc": 0.9220489977728286,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 19,
+              "density": 0.7065,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 20,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 21,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 22,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 23,
+              "density": 0.70675,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 24,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 25,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 26,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 27,
+              "density": 0.70675,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 28,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 29,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 30,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 31,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 32,
+              "density": 0.70675,
+              "val_acc": 0.9287305122494433,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 33,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 34,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 35,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 36,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 37,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 38,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 39,
+              "density": 0.70675,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 40,
+              "density": 0.70675,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 41,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 42,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 43,
+              "density": 0.70675,
+              "val_acc": 0.9287305122494433,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 44,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 45,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 46,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 47,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 48,
+              "density": 0.70675,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 49,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 50,
+              "density": 0.70675,
+              "val_acc": 0.9443207126948775,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 51,
+              "density": 0.70675,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 52,
+              "density": 0.7065,
+              "val_acc": 0.7505567928730512,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 53,
+              "density": 0.70575,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 54,
+              "density": 0.70575,
+              "val_acc": 0.9688195991091314,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 55,
+              "density": 0.70175,
+              "val_acc": 0.9265033407572383,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 56,
+              "density": 0.7015,
+              "val_acc": 0.9755011135857461,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 57,
+              "density": 0.69975,
+              "val_acc": 0.9131403118040089,
+              "running_best": 0.9755011135857461,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 58,
+              "density": 0.69975,
+              "val_acc": 0.9131403118040089,
+              "running_best": 0.9755011135857461,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 59,
+              "density": 0.69975,
+              "val_acc": 0.9131403118040089,
+              "running_best": 0.9755011135857461,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 60,
+              "density": 0.69975,
+              "val_acc": 0.9131403118040089,
+              "running_best": 0.9755011135857461,
+              "redundant": 1,
+              "mode": "LLM"
+            }
+          ]
+        ]
+      },
+      "rar_compressed": {
+        "val_accuracies": [
+          0.9688195991091314
+        ],
+        "test_accuracies": [
+          0.9617777777777776
+        ],
+        "redundancies": [
+          21
+        ],
+        "prompt_densities": [
+          0.4029375000000001
+        ],
+        "wall_clock_latencies": [
+          558.9235219955444
+        ],
+        "net_tokens": [
+          108705
+        ],
+        "generalization_gaps": [
+          0.007041821331353781
+        ],
+        "per_cycle_trajectories": [
+          [
+            {
+              "cycle": 1,
+              "density": 0.24625,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9510022271714922,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 2,
+              "density": 0.27775,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 3,
+              "density": 0.319,
+              "val_acc": 0.26280623608017817,
+              "running_best": 0.9576837416481069,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 4,
+              "density": 0.35925,
+              "val_acc": 0.9621380846325167,
+              "running_best": 0.9621380846325167,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 5,
+              "density": 0.3535,
+              "val_acc": 0.9599109131403119,
+              "running_best": 0.9621380846325167,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 6,
+              "density": 0.39475,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 7,
+              "density": 0.436,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 8,
+              "density": 0.3555,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 9,
+              "density": 0.39625,
+              "val_acc": 0.7082405345211581,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 10,
+              "density": 0.4375,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 11,
+              "density": 0.356,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 12,
+              "density": 0.39775,
+              "val_acc": 0.9287305122494433,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 13,
+              "density": 0.43925,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 14,
+              "density": 0.34625,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 15,
+              "density": 0.388,
+              "val_acc": 0.9153674832962138,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 16,
+              "density": 0.42925,
+              "val_acc": 0.9265033407572383,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 17,
+              "density": 0.35925,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 18,
+              "density": 0.4005,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 19,
+              "density": 0.44225,
+              "val_acc": 0.9020044543429844,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 20,
+              "density": 0.35825,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 21,
+              "density": 0.4,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 22,
+              "density": 0.44125,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 23,
+              "density": 0.3595,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 24,
+              "density": 0.40025,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 25,
+              "density": 0.442,
+              "val_acc": 0.9198218262806236,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 26,
+              "density": 0.35875,
+              "val_acc": 0.8975501113585747,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 27,
+              "density": 0.40025,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 28,
+              "density": 0.4415,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 29,
+              "density": 0.3565,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 30,
+              "density": 0.39725,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 31,
+              "density": 0.4385,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 32,
+              "density": 0.47975,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 33,
+              "density": 0.5215,
+              "val_acc": 0.9020044543429844,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 34,
+              "density": 0.5615,
+              "val_acc": 0.9465478841870824,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 35,
+              "density": 0.36325,
+              "val_acc": 0.9287305122494433,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 36,
+              "density": 0.40375,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 37,
+              "density": 0.445,
+              "val_acc": 0.9576837416481069,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 38,
+              "density": 0.36325,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 39,
+              "density": 0.405,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 40,
+              "density": 0.44625,
+              "val_acc": 0.933184855233853,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 41,
+              "density": 0.38275,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 42,
+              "density": 0.42325,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 43,
+              "density": 0.465,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 44,
+              "density": 0.38275,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9665924276169265,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 45,
+              "density": 0.4245,
+              "val_acc": 0.8596881959910914,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 46,
+              "density": 0.46625,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9665924276169265,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 47,
+              "density": 0.5065,
+              "val_acc": 0.9688195991091314,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 48,
+              "density": 0.39925,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9688195991091314,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 49,
+              "density": 0.4405,
+              "val_acc": 0.9309576837416481,
+              "running_best": 0.9688195991091314,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 50,
+              "density": 0.3595,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 51,
+              "density": 0.39975,
+              "val_acc": 0.9398663697104677,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 52,
+              "density": 0.44,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 53,
+              "density": 0.34975,
+              "val_acc": 0.9532293986636972,
+              "running_best": 0.9688195991091314,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 54,
+              "density": 0.39,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 55,
+              "density": 0.43025,
+              "val_acc": 0.9665924276169265,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 56,
+              "density": 0.47075,
+              "val_acc": 0.955456570155902,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 57,
+              "density": 0.38275,
+              "val_acc": 0.9487750556792873,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 58,
+              "density": 0.4235,
+              "val_acc": 0.9510022271714922,
+              "running_best": 0.9688195991091314,
+              "redundant": 1,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 59,
+              "density": 0.3405,
+              "val_acc": 0.8708240534521158,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            },
+            {
+              "cycle": 60,
+              "density": 0.38125,
+              "val_acc": 0.9643652561247216,
+              "running_best": 0.9688195991091314,
+              "redundant": 0,
+              "mode": "LLM"
+            }
+          ]
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,327 @@
+{
+  "dataset": "digits",
+  "n_seeds": 10,
+  "cycles": 60,
+  "descriptives": {
+    "stateless_baseline": {
+      "test_accuracies": {
+        "mean": 0.9608444444444444,
+        "sd": 0.00911189397419561,
+        "min": 0.944,
+        "max": 0.9737777777777777,
+        "n": 10
+      },
+      "val_accuracies": {
+        "mean": 0.9728285077951003,
+        "sd": 0.006281869577225272,
+        "min": 0.9599109131403119,
+        "max": 0.9821826280623608,
+        "n": 10
+      },
+      "prompt_densities": {
+        "mean": 1.4093683333333333,
+        "sd": 0.0011791040095903479,
+        "min": 1.4075291666666667,
+        "max": 1.4122458333333332,
+        "n": 10
+      },
+      "net_tokens": {
+        "mean": 350248.4,
+        "sd": 282.98496230169,
+        "min": 349807.0,
+        "max": 350939.0,
+        "n": 10
+      },
+      "wall_clock_latencies": {
+        "mean": 677.9509402275086,
+        "sd": 136.1914695326611,
+        "min": 522.8148083686829,
+        "max": 958.3993992805481,
+        "n": 10
+      },
+      "redundancies": {
+        "mean": 0.3,
+        "sd": 0.4830458915396479,
+        "min": 0.0,
+        "max": 1.0,
+        "n": 10
+      },
+      "generalization_gaps": {
+        "mean": 0.014416728532541412,
+        "sd": 0.010874846012911814,
+        "min": 0.0003850532046523192,
+        "max": 0.033728285077951004,
+        "n": 10
+      }
+    },
+    "vector_rag": {
+      "test_accuracies": {
+        "mean": 0.9570666666666667,
+        "sd": 0.01427951423364852,
+        "min": 0.920888888888889,
+        "max": 0.9697777777777778,
+        "n": 10
+      },
+      "val_accuracies": {
+        "mean": 0.9717149220489979,
+        "sd": 0.00535859908912205,
+        "min": 0.9643652561247216,
+        "max": 0.977728285077951,
+        "n": 10
+      },
+      "prompt_densities": {
+        "mean": 0.6605904166666667,
+        "sd": 0.001409096125334263,
+        "min": 0.6583958333333334,
+        "max": 0.6630125000000001,
+        "n": 10
+      },
+      "net_tokens": {
+        "mean": 170541.7,
+        "sd": 338.18307008022873,
+        "min": 170015.0,
+        "max": 171123.0,
+        "n": 10
+      },
+      "wall_clock_latencies": {
+        "mean": 366.85529539585116,
+        "sd": 37.26006702181183,
+        "min": 299.4468426704407,
+        "max": 418.69402265548706,
+        "n": 10
+      },
+      "redundancies": {
+        "mean": 30.3,
+        "sd": 4.2176876234364356,
+        "min": 23.0,
+        "max": 38.0,
+        "n": 10
+      },
+      "generalization_gaps": {
+        "mean": 0.015285325414501328,
+        "sd": 0.012251673523971688,
+        "min": 0.003185350160851308,
+        "max": 0.04347636723583259,
+        "n": 10
+      }
+    },
+    "rar_compressed": {
+      "test_accuracies": {
+        "mean": 0.9511111111111111,
+        "sd": 0.03915766029011992,
+        "min": 0.8422222222222222,
+        "max": 0.9737777777777777,
+        "n": 10
+      },
+      "val_accuracies": {
+        "mean": 0.9741648106904233,
+        "sd": 0.005957654832290687,
+        "min": 0.9621380846325167,
+        "max": 0.9821826280623608,
+        "n": 10
+      },
+      "prompt_densities": {
+        "mean": 0.39099541666666665,
+        "sd": 0.010386582009547179,
+        "min": 0.3812666666666667,
+        "max": 0.41872499999999996,
+        "n": 10
+      },
+      "net_tokens": {
+        "mean": 105838.9,
+        "sd": 2492.779682291326,
+        "min": 103504.0,
+        "max": 112494.0,
+        "n": 10
+      },
+      "wall_clock_latencies": {
+        "mean": 422.00797951221466,
+        "sd": 11.98243502922114,
+        "min": 409.89711594581604,
+        "max": 451.7911648750305,
+        "n": 10
+      },
+      "redundancies": {
+        "mean": 11.5,
+        "sd": 4.743416490252569,
+        "min": 4.0,
+        "max": 21.0,
+        "n": 10
+      },
+      "generalization_gaps": {
+        "mean": 0.02486018312298933,
+        "sd": 0.038498073735393996,
+        "min": 0.0005038356842365088,
+        "max": 0.13105171987131903,
+        "n": 10
+      }
+    },
+    "random_search": {
+      "test_accuracies": {
+        "mean": 0.87354,
+        "sd": 0.18261044268545484,
+        "min": 0.3613,
+        "max": 0.9689,
+        "n": 10
+      },
+      "val_accuracies": {
+        "mean": 0.86793,
+        "sd": 0.18730061428385952,
+        "min": 0.3497,
+        "max": 0.9733,
+        "n": 10
+      },
+      "prompt_densities": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 10
+      },
+      "net_tokens": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 10
+      },
+      "wall_clock_latencies": {
+        "mean": 136.738,
+        "sd": 62.390171733125484,
+        "min": 56.46,
+        "max": 250.35,
+        "n": 10
+      },
+      "redundancies": {
+        "mean": 59.0,
+        "sd": 0.0,
+        "min": 59.0,
+        "max": 59.0,
+        "n": 10
+      },
+      "generalization_gaps": {
+        "mean": -0.00562,
+        "sd": 0.01913285713693128,
+        "min": -0.039,
+        "max": 0.019,
+        "n": 10
+      }
+    },
+    "bayesian_opt": {
+      "test_accuracies": {
+        "mean": 0.95706,
+        "sd": 0.01053725665331247,
+        "min": 0.9333,
+        "max": 0.9716,
+        "n": 10
+      },
+      "val_accuracies": {
+        "mean": 0.9719300000000001,
+        "sd": 0.007667833244578727,
+        "min": 0.9577,
+        "max": 0.9822,
+        "n": 10
+      },
+      "prompt_densities": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 10
+      },
+      "net_tokens": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 10
+      },
+      "wall_clock_latencies": {
+        "mean": 138.21300000000002,
+        "sd": 33.62332128812448,
+        "min": 94.29,
+        "max": 200.58,
+        "n": 10
+      },
+      "redundancies": {
+        "mean": 22.5,
+        "sd": 2.798809270624444,
+        "min": 18.0,
+        "max": 27.0,
+        "n": 10
+      },
+      "generalization_gaps": {
+        "mean": 0.014860000000000002,
+        "sd": 0.014612186694673731,
+        "min": -0.0139,
+        "max": 0.0355,
+        "n": 10
+      }
+    }
+  },
+  "efficiency_family_rar_vs_baseline": [
+    {
+      "metric": "prompt_densities",
+      "rar_mean": 0.39099541666666665,
+      "baseline_mean": 1.4093683333333333,
+      "pct_reduction_vs_baseline": -72.25740018282421,
+      "wilcoxon_stat": 0.0,
+      "wilcoxon_p_raw": 0.001953125,
+      "wilcoxon_p_holm": 0.0078125,
+      "significant_holm_0.05": true
+    },
+    {
+      "metric": "net_tokens",
+      "rar_mean": 105838.9,
+      "baseline_mean": 350248.4,
+      "pct_reduction_vs_baseline": -69.78176060190425,
+      "wilcoxon_stat": 0.0,
+      "wilcoxon_p_raw": 0.001953125,
+      "wilcoxon_p_holm": 0.0078125,
+      "significant_holm_0.05": true
+    },
+    {
+      "metric": "wall_clock_latencies",
+      "rar_mean": 422.00797951221466,
+      "baseline_mean": 677.9509402275086,
+      "pct_reduction_vs_baseline": -37.75243096932706,
+      "wilcoxon_stat": 0.0,
+      "wilcoxon_p_raw": 0.001953125,
+      "wilcoxon_p_holm": 0.0078125,
+      "significant_holm_0.05": true
+    },
+    {
+      "metric": "redundancies",
+      "rar_mean": 11.5,
+      "baseline_mean": 0.3,
+      "pct_reduction_vs_baseline": 3733.3333333333335,
+      "wilcoxon_stat": 0.0,
+      "wilcoxon_p_raw": 0.001953125,
+      "wilcoxon_p_holm": 0.0078125,
+      "significant_holm_0.05": true
+    }
+  ],
+  "accuracy": {
+    "margin_points": 2.0,
+    "rar_vs_baseline": {
+      "superiority_wilcoxon_p_one_sided": 0.47265625,
+      "superiority_significant": false,
+      "tost_equivalence_p": 0.22499747447101684,
+      "tost_equivalent": false,
+      "ci90_points": [
+        -3.356446297091881,
+        1.4097796304252157
+      ]
+    },
+    "rag_vs_baseline": {
+      "superiority_wilcoxon_p_one_sided": 0.5771484375,
+      "superiority_significant": false,
+      "tost_equivalence_p": 0.0063556856955539415,
+      "tost_equivalent": true,
+      "ci90_points": [
+        -1.336874054110581,
+        0.5813184985550294
+      ]
+    }
+  }
+}

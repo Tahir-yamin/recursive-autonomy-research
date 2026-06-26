@@ -1,0 +1,99 @@
+This is BibTeX, Version 0.99e
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+Reallocating 'name_of_file' (item size: 1) to 9 items.
+The style file: abbrvnat.bst
+I found no \bibdata command---while reading file main.aux
+Warning--I didn't find a database entry for "vaswani2017attention"
+Warning--I didn't find a database entry for "karpathy2026"
+Warning--I didn't find a database entry for "lu2024aiscientist"
+Warning--I didn't find a database entry for "yang2024sweagent"
+Warning--I didn't find a database entry for "jimenez2023swebench"
+Warning--I didn't find a database entry for "yao2022react"
+Warning--I didn't find a database entry for "weng2023agent"
+Warning--I didn't find a database entry for "liu2023lost"
+Warning--I didn't find a database entry for "zhang2025rlm"
+Warning--I didn't find a database entry for "edge2024graphrag"
+Warning--I didn't find a database entry for "weston2014memory"
+Warning--I didn't find a database entry for "sukhbaatar2015end"
+Warning--I didn't find a database entry for "graves2014neural"
+Warning--I didn't find a database entry for "dai2019transformer"
+Warning--I didn't find a database entry for "shinn2023reflexion"
+Warning--I didn't find a database entry for "wang2023voyager"
+Warning--I didn't find a database entry for "park2023generative"
+Warning--I didn't find a database entry for "wu2023autogen"
+Warning--I didn't find a database entry for "lewis2020retrieval"
+Warning--I didn't find a database entry for "guu2020realm"
+Warning--I didn't find a database entry for "borgeaud2022improving"
+Warning--I didn't find a database entry for "kipf2016semi"
+Warning--I didn't find a database entry for "velickovic2018graph"
+Warning--I didn't find a database entry for "hamilton2017inductive"
+Warning--I didn't find a database entry for "blondel2008louvain"
+Warning--I didn't find a database entry for "dao2022flashattention"
+Warning--I didn't find a database entry for "dao2023flashattention2"
+Warning--I didn't find a database entry for "beltagy2020longformer"
+Warning--I didn't find a database entry for "kitaev2020reformer"
+Warning--I didn't find a database entry for "katharopoulos2020transformers"
+Warning--I didn't find a database entry for "bulatov2022recurrent"
+Warning--I didn't find a database entry for "rae2019compressive"
+Warning--I didn't find a database entry for "child2019generating"
+Warning--I didn't find a database entry for "xiong2023effective"
+Warning--I didn't find a database entry for "peng2023yarn"
+Warning--I didn't find a database entry for "zhang2023h2o"
+Warning--I didn't find a database entry for "xiao2023efficient"
+Warning--I didn't find a database entry for "novack2025openevolve"
+Warning--I didn't find a database entry for "hu2024adas"
+Warning--I didn't find a database entry for "chen2023evoprompting"
+Warning--I didn't find a database entry for "packer2023memgpt"
+Warning--I didn't find a database entry for "sumers2023coala"
+Warning--I didn't find a database entry for "hendrycks2020measuring"
+Warning--I didn't find a database entry for "cobbe2021training"
+Warning--I didn't find a database entry for "liang2022holistic"
+Warning--I didn't find a database entry for "snell2024scaling"
+Warning--I didn't find a database entry for "kirkpatrick2017ewc"
+Warning--I didn't find a database entry for "lopezpaz2017gem"
+Warning--I didn't find a database entry for "chaudhry2018efficient"
+Warning--I didn't find a database entry for "aljundi2018memory"
+Warning--I didn't find a database entry for "owasp2023api"
+You've used 0 entries,
+            2773 wiz_defined-function locations,
+            642 strings with 5399 characters,
+and the built_in function-call counts, 33 in all, are:
+= -- 0
+> -- 0
+< -- 0
++ -- 0
+- -- 0
+* -- 2
+:= -- 10
+add.period$ -- 0
+call.type$ -- 0
+change.case$ -- 0
+chr.to.int$ -- 0
+cite$ -- 0
+duplicate$ -- 0
+empty$ -- 1
+format.name$ -- 0
+if$ -- 1
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 0
+newline$ -- 8
+num.names$ -- 0
+pop$ -- 0
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 1
+stack$ -- 0
+substring$ -- 0
+swap$ -- 0
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 0
+while$ -- 0
+width$ -- 0
+write$ -- 7
+(There was 1 error message)
