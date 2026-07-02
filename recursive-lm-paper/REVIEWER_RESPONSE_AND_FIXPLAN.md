@@ -48,13 +48,14 @@ implying it exists.
 
 ## #6 MSR — hygiene
 - No duplicate packages / Windows abs paths (verified). **PASS.**
-- WAL final-failure currently logs and continues (data-loss risk) — should
-  `raise`. **REMAINING (code).**
+- WAL final-failure now `raise`s `OSError` after 5 failed atomic-replace
+  attempts (`run_pilot_experiment.py:320`); no longer logs-and-continues. **DONE.**
 
 ## #7 JMLR — numbers trace to JSON
 - All Table 1 numbers re-derived and confirmed exact vs `pilot_results.json`. **PASS.**
-- δ thresholds (0.50/0.90) are nominal modeling parameters, not fitted — should
-  be stated as illustrative or empirically calibrated. **REMAINING (one sentence + or a calibration study).**
+- δ thresholds (0.50/0.90) reworded from "calibrated" to "nominal, chosen
+  a priori as illustrative modelling constants, not fitted" (Def. §formulation,
+  §experiments). **DONE.** A full empirical calibration study remains optional future work.
 
 ## #8 Hugging Face — cost honesty
 - Added explicit cost caveat (L7): LLM-orchestration is **not** cost-competitive
